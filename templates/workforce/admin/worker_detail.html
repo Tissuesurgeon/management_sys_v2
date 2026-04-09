@@ -1,0 +1,16 @@
+{% extends "workforce/base_admin.html" %}
+{% block title %}{{ worker.name }} — FRx OPS{% endblock %}
+{% block content %}
+<div class="max-w-2xl">
+  {% include "workforce/includes/page_header.html" with eyebrow="Roster" title=worker.name subtitle=worker.title %}
+  <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+    <dl class="space-y-3 text-sm">
+      <div class="flex justify-between border-b border-slate-100 py-2"><dt class="text-slate-500">Department</dt><dd class="font-medium text-slate-900">{{ worker.department }}</dd></div>
+      <div class="flex justify-between border-b border-slate-100 py-2"><dt class="text-slate-500">Employee ID</dt><dd class="font-medium text-slate-900">{{ worker.employee_id }}</dd></div>
+      <div class="flex justify-between border-b border-slate-100 py-2"><dt class="text-slate-500">Facility</dt><dd class="font-medium text-slate-900">{{ worker.facility_location }}</dd></div>
+      <div class="flex justify-between py-2"><dt class="text-slate-500">Tasks completed</dt><dd class="font-medium text-slate-900">{{ worker.tasks_completed }}</dd></div>
+    </dl>
+    <a href="{% url 'workforce:admin_workers' %}" class="mt-4 inline-block text-sm font-semibold text-slate-800 underline">Back to roster</a>
+  </div>
+</div>
+{% endblock %}

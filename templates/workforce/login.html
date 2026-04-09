@@ -1,0 +1,59 @@
+{% extends "base_auth.html" %}
+{% block title %}Sign in — FRx OPS{% endblock %}
+{% block body %}
+<div class="relative flex min-h-dvh min-h-[100dvh] flex-col bg-[#F8FAFC] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top,0px))]">
+  <div class="mx-auto flex max-w-md flex-col items-center">
+    <div class="mb-8 flex w-full flex-col items-center text-center">
+      <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-slate-800 text-white shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v6M15 1v6M9 17v6M15 17v6M1 9h6M17 9h6M1 15h6M17 15h6"/></svg>
+      </div>
+      <p class="text-sm font-bold tracking-wide text-slate-900">FRx OPS</p>
+      <p class="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">management system</p>
+      <h1 class="mt-6 text-2xl font-bold text-slate-900">Sign in</h1>
+      <p class="mt-2 text-sm text-slate-500">Access your organization&apos;s workforce dashboard</p>
+    </div>
+
+    <div class="w-full rounded-3xl border border-slate-100/80 bg-white px-8 py-10 shadow-xl shadow-slate-900/10">
+      <form method="post" class="space-y-6" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{{ form.non_field_errors }}</div>
+        {% endif %}
+        {% if form.username.errors %}<div class="text-sm text-red-700">{{ form.username.errors }}</div>{% endif %}
+        {% if form.password.errors %}<div class="text-sm text-red-700">{{ form.password.errors }}</div>{% endif %}
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_username">Work email</label>
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+            <input type="text" name="username" id="id_username" required autocomplete="username"
+                   value="{{ form.username.value|default:'' }}"
+                   class="w-full rounded-lg border-0 bg-gray-100 py-3 pl-10 pr-4 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-500"
+                   placeholder="admin@company.com">
+          </div>
+        </div>
+        <div>
+          <div class="mb-2 flex items-center justify-between">
+            <label class="text-xs font-bold uppercase tracking-wider text-slate-600" for="id_password">Security Key</label>
+            <button type="button" class="text-xs font-bold text-slate-500 hover:underline">Forgot Key?</button>
+          </div>
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+            <input type="password" name="password" id="id_password" required autocomplete="current-password"
+                   class="w-full rounded-lg border-0 bg-gray-100 py-3 pl-10 pr-4 text-slate-900 focus:ring-2 focus:ring-slate-500"
+                   placeholder="••••••••">
+          </div>
+        </div>
+        <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 py-4 text-sm font-bold text-white transition hover:bg-slate-700">
+          Initialize Session
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+      </form>
+    </div>
+
+    <p class="mt-6 text-center text-sm text-slate-600">
+      New operator?
+      <a href="{% url 'workforce:signup' %}" class="font-semibold text-slate-900 underline hover:no-underline">Create an account</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "workforce/base_admin.html" %}
+{% block title %}Delete event — FRx OPS{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-lg rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+  <h1 class="text-xl font-bold text-slate-900">Delete event</h1>
+  <p class="mt-2 text-slate-600">Remove <strong>{{ event.title }}</strong>? This cannot be undone.</p>
+  <form method="post" class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+    {% csrf_token %}
+    <button type="submit" class="rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-700">Delete</button>
+    <a href="{% url 'workforce:admin_calendar_list' %}" class="rounded-xl border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">Cancel</a>
+  </form>
+</div>
+{% endblock %}

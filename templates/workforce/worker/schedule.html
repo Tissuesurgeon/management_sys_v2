@@ -1,0 +1,62 @@
+{% extends "workforce/base_worker.html" %}
+{% block title %}Schedule — FRx OPS{% endblock %}
+{% block content %}
+<div>
+  {% include "workforce/includes/page_header.html" with eyebrow="Schedule overview" title="Work calendar" subtitle=subtitle %}
+
+  <div class="mb-4 rounded-2xl border border-slate-100 bg-slate-800 p-5 text-white shadow-sm">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="text-sm text-slate-300">Weekly completion</p>
+        <p class="text-3xl font-bold">88% <span class="text-base font-semibold text-emerald-400">on track</span></p>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-center">
+        <div class="rounded-xl bg-white/10 px-4 py-2">
+          <p class="text-xs text-slate-400">Pending</p>
+          <p class="text-lg font-bold">—</p>
+        </div>
+        <div class="rounded-xl bg-white/10 px-4 py-2">
+          <p class="text-xs text-slate-400">Completed</p>
+          <p class="text-lg font-bold text-emerald-400">—</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-4 flex items-center justify-between">
+    <a class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50" href="?year={{ prev_year }}&month={{ prev_month }}">←</a>
+    <span class="font-semibold text-slate-900">{{ month_name }} {{ year }}</span>
+    <a class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50" href="?year={{ next_year }}&month={{ next_month }}">→</a>
+  </div>
+
+  <div class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+    <table class="w-full table-fixed border-collapse text-center text-sm">
+      <thead>
+        <tr class="border-b border-slate-100 text-xs font-semibold uppercase text-slate-500">
+          <th class="py-2">Mon</th><th class="py-2">Tue</th><th class="py-2">Wed</th><th class="py-2">Thu</th><th class="py-2">Fri</th><th class="py-2">Sat</th><th class="py-2">Sun</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in weeks %}
+          <tr>
+            {% for cell in week %}
+              {% if not cell.in_month %}
+                <td class="border-t border-slate-50 bg-slate-50/80 p-2"></td>
+              {% else %}
+                <td class="border-t border-slate-100 p-2 align-top">
+                  <div class="font-semibold text-slate-900">{{ cell.day }}</div>
+                  {% if cell.count %}
+                    <a href="{% url 'workforce:worker_my_tasks' %}?date={{ cell.date_str }}" class="mt-1 inline-block rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-slate-900">{{ cell.count }} tasks</a>
+                  {% else %}
+                    <span class="text-xs text-slate-400">—</span>
+                  {% endif %}
+                </td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

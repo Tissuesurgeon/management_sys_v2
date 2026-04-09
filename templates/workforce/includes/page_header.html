@@ -1,0 +1,23 @@
+{# Matches ResponsivePageHeader + PageHeader (md+) — add action buttons below this include when needed #}
+<div class="mb-5 md:hidden">
+  {% if eyebrow %}
+    <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">{{ eyebrow }}</p>
+  {% endif %}
+  <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">{{ title }}</h1>
+  {% if subtitle %}
+    <p class="mt-1 text-sm leading-relaxed text-slate-500">{{ subtitle }}</p>
+  {% endif %}
+</div>
+<div class="mb-6 hidden md:block">
+  <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+    <div class="min-w-0">
+      {% if eyebrow %}
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ eyebrow }}</p>
+      {% endif %}
+      <h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl md:text-3xl">{{ title }}</h1>
+      {% if subtitle %}
+        <p class="mt-1 break-words text-sm text-slate-500">{{ subtitle }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>

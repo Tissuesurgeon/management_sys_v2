@@ -1,0 +1,26 @@
+/* Matches Management_sys src/index.css + layout safe-area */
+html {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.safe-pt {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+/* Django form errors — visible on Tailwind-preflight pages */
+.errorlist {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+  color: rgb(185 28 28);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}

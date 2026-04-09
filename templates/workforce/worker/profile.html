@@ -1,0 +1,51 @@
+{% extends "workforce/base_worker.html" %}
+{% block title %}Profile — FRx OPS{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-lg">
+  {% include "workforce/includes/page_header.html" with eyebrow="Account" title="Profile" subtitle="Your account, photo, and roster information." %}
+  <form method="post" enctype="multipart/form-data" class="space-y-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+    {% csrf_token %}
+    <div>
+      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Account</h2>
+      <div class="space-y-4">
+        {% for field in user_form %}
+          <div>
+            <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field.errors }}
+            {{ field }}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Photo</h2>
+      {% if profile.photo %}
+        <div class="mb-3 flex items-center gap-3">
+          <img src="{{ profile.photo.url }}" alt="" class="h-16 w-16 rounded-full object-cover ring-2 ring-slate-100" width="64" height="64">
+          <p class="text-xs text-slate-500">Current photo. Choose a new file to replace it, or clear below.</p>
+        </div>
+      {% endif %}
+      {% for field in photo_form %}
+        <div>
+          <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field.errors }}
+          {{ field }}
+        </div>
+      {% endfor %}
+    </div>
+    <div>
+      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Roster</h2>
+      <div class="space-y-4">
+        {% for field in worker_form %}
+          <div>
+            <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field.errors }}
+            {{ field }}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="submit" class="w-full rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700">Save</button>
+  </form>
+</div>
+{% endblock %}

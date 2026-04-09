@@ -1,0 +1,22 @@
+{% extends "workforce/base_admin.html" %}
+{% block title %}{{ title }} — FRx OPS{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  {% include "workforce/includes/page_header.html" with eyebrow="Scheduling" title=title subtitle="Add or update a calendar event." %}
+  <form method="post" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+    {% csrf_token %}
+    {% for field in form %}
+      <div>
+        <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field.errors }}
+        {{ field }}
+        {% if field.help_text %}<p class="mt-1 text-xs text-slate-500">{{ field.help_text }}</p>{% endif %}
+      </div>
+    {% endfor %}
+    <div class="flex flex-wrap gap-3 pt-2">
+      <button type="submit" class="rounded-xl bg-slate-800 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-700">Save</button>
+      <a href="{% url 'workforce:admin_calendar_list' %}" class="rounded-xl border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

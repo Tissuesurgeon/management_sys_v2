@@ -1,0 +1,20 @@
+{# Matches FloorPlanCard.jsx #}
+<div class="relative overflow-hidden rounded-xl border border-slate-100 bg-slate-700 shadow-sm">
+  <div class="flex items-center justify-between border-b border-slate-600 px-4 py-2">
+    <span class="text-sm font-medium text-slate-200">Site overview</span>
+    <span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300">Normal</span>
+  </div>
+  <div class="relative aspect-[16/10] p-6">
+    <svg class="h-full w-full text-slate-300" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="20" y="20" width="360" height="200" stroke="currentColor" stroke-width="2"/>
+      <line x1="140" y1="20" x2="140" y2="220" stroke="currentColor"/>
+      <line x1="260" y1="20" x2="260" y2="220" stroke="currentColor"/>
+      <line x1="20" y1="120" x2="380" y2="120" stroke="currentColor"/>
+      <rect x="40" y="40" width="80" height="60" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+      <rect x="280" y="140" width="80" height="60" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+    </svg>
+    <span class="absolute left-[28%] top-[35%] h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-white" title="Active"></span>
+    <span class="absolute left-[62%] top-[55%] h-3 w-3 rounded-full bg-amber-500 ring-2 ring-white" title="Alert"></span>
+    <span class="absolute left-[48%] top-[72%] h-3 w-3 rounded-full bg-slate-300 ring-2 ring-white" title="Personnel"></span>
+  </div>
+</div>

@@ -1,0 +1,124 @@
+{% extends "base_auth.html" %}
+{% block title %}Sign up — FRx OPS{% endblock %}
+{% block body %}
+<div class="relative flex min-h-dvh min-h-[100dvh] flex-col bg-[#F8FAFC] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top,0px))]">
+  <div class="mx-auto flex max-w-lg flex-col">
+    <div class="mb-6 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+        </div>
+        <div>
+          <p class="text-sm font-bold tracking-wide text-slate-900">FRx OPS</p>
+          <p class="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">management system</p>
+        </div>
+      </div>
+      <a href="{% url 'workforce:login' %}" class="text-sm font-semibold text-slate-700 hover:text-slate-900 hover:underline">Sign in</a>
+    </div>
+
+    <div class="mb-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+      <h1 class="text-xl font-bold text-slate-900">Create your organization</h1>
+      <p class="mt-2 text-sm text-slate-600">FRx OPS helps companies schedule work, assign field staff, and track completion in one place.</p>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        <div class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+          <p class="text-xs font-semibold text-emerald-800">Secure access</p>
+          <p class="text-xs text-emerald-700/90">Role-based sessions</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-slate-800 p-3 text-white">
+          <p class="text-xs font-semibold">Instant dispatch</p>
+          <p class="text-xs text-slate-300">Calendar-driven tasks</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-100/80 bg-white px-6 py-8 shadow-xl shadow-slate-900/10 sm:px-8">
+      <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Worker registration</p>
+      <h2 class="mt-1 text-2xl font-bold text-slate-900">Create new profile</h2>
+
+      <form method="post" action="{% url 'workforce:signup' %}" class="mt-6 space-y-5" novalidate>
+        {% csrf_token %}
+        {% if form.errors %}
+          <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 shadow-sm" role="alert">
+            <p class="font-semibold">Could not create your account yet</p>
+            <ul class="mt-2 list-disc space-y-1 pl-5">
+              {% for field in form %}
+                {% for err in field.errors %}
+                  <li><span class="font-medium">{{ field.label }}:</span> {{ err }}</li>
+                {% endfor %}
+              {% endfor %}
+              {% for err in form.non_field_errors %}
+                <li>{{ err }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_username">Username</label>
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <input type="text" name="username" id="id_username" required class="w-full rounded-lg border-0 bg-gray-100 py-3 pl-10 pr-4 text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.username.value|default:'' }}" autocomplete="username">
+          </div>
+          <div class="mt-1 text-sm text-red-700">{{ form.username.errors }}</div>
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_email">Corporate email</label>
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+            <input type="email" name="email" id="id_email" class="w-full rounded-lg border-0 bg-gray-100 py-3 pl-10 pr-4 text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.email.value|default:'' }}" autocomplete="email">
+          </div>
+          <div class="mt-1 text-sm text-red-700">{{ form.email.errors }}</div>
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_password1">Password</label>
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" name="password1" id="id_password1" required class="w-full rounded-lg border-0 bg-gray-100 py-3 pl-10 pr-4 text-slate-900 focus:ring-2 focus:ring-slate-500" autocomplete="new-password" placeholder="••••••••">
+          </div>
+          <p class="mt-1 text-xs text-slate-500">Use at least 8 characters. Django may require a stronger password than &ldquo;password123&rdquo;.</p>
+          <div class="mt-1 text-sm text-red-700">{{ form.password1.errors }}</div>
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_password2">Confirm password</label>
+          <input type="password" name="password2" id="id_password2" required class="w-full rounded-lg border-0 bg-gray-100 py-3 px-4 text-slate-900 focus:ring-2 focus:ring-slate-500" autocomplete="new-password">
+          <div class="mt-1 text-sm text-red-700">{{ form.password2.errors }}</div>
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_role">Account role</label>
+          <select name="role" id="id_role" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-3 text-sm text-slate-900 focus:ring-2 focus:ring-slate-500">
+            {% for val, label in form.fields.role.choices %}
+              <option value="{{ val }}" {% if form.role.value == val or not form.role.value and val == 'worker' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <div class="mt-1 text-sm text-red-700">{{ form.role.errors }}</div>
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_registration_code">Registration code (workers)</label>
+          <input type="text" name="registration_code" id="id_registration_code" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-4 font-mono text-sm uppercase tracking-wide text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.registration_code.value|default:'' }}" placeholder="From your admin" autocomplete="off">
+          <p class="mt-1 text-xs text-slate-500">If your organization pre-registered you, enter the code they gave you. Leave blank for open worker signup.</p>
+          <div class="mt-1 text-sm text-red-700">{{ form.registration_code.errors }}</div>
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_worker_name">Full name (workers)</label>
+          <input type="text" name="worker_name" id="id_worker_name" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-4 text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.worker_name.value|default:'' }}" placeholder="Jane Operator">
+          <div class="mt-1 text-sm text-red-700">{{ form.worker_name.errors }}</div>
+        </div>
+        <div>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_employee_id">Employee ID</label>
+          <input type="text" name="employee_id" id="id_employee_id" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-4 text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.employee_id.value|default:'' }}" placeholder="4812-X">
+          <div class="mt-1 text-sm text-red-700">{{ form.employee_id.errors }}</div>
+        </div>
+        <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 py-4 text-sm font-bold text-white transition hover:bg-slate-700">
+          Initialize registration
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+      </form>
+      <p class="mt-4 text-center text-xs text-slate-500">By registering you agree to safety protocols and terms of operations.</p>
+    </div>
+
+    <p class="mt-8 flex items-center justify-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-400"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
+      Encrypted facility access
+    </p>
+  </div>
+</div>
+{% endblock %}
