@@ -1,4 +1,4 @@
-# FRx OPS — Workforce management (Django)
+# FRx OPS — Workforce management 
 
 **FRx OPS** is a web application for organizations that schedule field work, assign it to staff, and track completion. This repository is a **server-rendered** implementation built with **Django 5**: HTML templates, a SQLite database in development, and **Tailwind CSS** (via CDN) for a responsive UI with a desktop sidebar and mobile bottom navigation.
 
