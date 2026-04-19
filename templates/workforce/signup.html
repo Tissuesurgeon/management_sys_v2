@@ -1,5 +1,5 @@
 {% extends "base_auth.html" %}
-{% block title %}Sign up — FRx OPS{% endblock %}
+{% block title %}Sign up — FM OPS{% endblock %}
 {% block body %}
 <div class="relative flex min-h-dvh min-h-[100dvh] flex-col bg-[#F8FAFC] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top,0px))]">
   <div class="mx-auto flex max-w-lg flex-col">
@@ -9,7 +9,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
         </div>
         <div>
-          <p class="text-sm font-bold tracking-wide text-slate-900">FRx OPS</p>
+          <p class="text-sm font-bold tracking-wide text-slate-900">FM OPS</p>
           <p class="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">management system</p>
         </div>
       </div>
@@ -17,25 +17,25 @@
     </div>
 
     <div class="mb-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-      <h1 class="text-xl font-bold text-slate-900">Create your organization</h1>
-      <p class="mt-2 text-sm text-slate-600">FRx OPS helps companies schedule work, assign field staff, and track completion in one place.</p>
+      <h1 class="text-xl font-bold text-slate-900">Create an account</h1>
+      <p class="mt-2 text-sm text-slate-600">FM OPS helps facility teams schedule work, assign plumbers, electricians, and general technicians, and track completion in one place.</p>
       <div class="mt-4 grid gap-3 sm:grid-cols-2">
         <div class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
-          <p class="text-xs font-semibold text-emerald-800">Secure access</p>
-          <p class="text-xs text-emerald-700/90">Role-based sessions</p>
+          <p class="text-xs font-semibold text-emerald-800">Facility manager</p>
+          <p class="text-xs text-emerald-700/90">Plan the calendar, roster, and reports</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-slate-800 p-3 text-white">
-          <p class="text-xs font-semibold">Instant dispatch</p>
-          <p class="text-xs text-slate-300">Calendar-driven tasks</p>
+          <p class="text-xs font-semibold">Field technician</p>
+          <p class="text-xs text-slate-300">See assigned tasks and update progress</p>
         </div>
       </div>
     </div>
 
     <div class="rounded-3xl border border-slate-100/80 bg-white px-6 py-8 shadow-xl shadow-slate-900/10 sm:px-8">
-      <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Worker registration</p>
-      <h2 class="mt-1 text-2xl font-bold text-slate-900">Create new profile</h2>
+      <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Registration</p>
+      <h2 class="mt-1 text-2xl font-bold text-slate-900">New profile</h2>
 
-      <form method="post" action="{% url 'workforce:signup' %}" class="mt-6 space-y-5" novalidate>
+      <form method="post" action="{% url 'workforce:signup' %}" class="mt-6 space-y-5" id="signup-form" novalidate>
         {% csrf_token %}
         {% if form.errors %}
           <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 shadow-sm" role="alert">
@@ -61,7 +61,7 @@
           <div class="mt-1 text-sm text-red-700">{{ form.username.errors }}</div>
         </div>
         <div>
-          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_email">Corporate email</label>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_email">Email</label>
           <div class="relative">
             <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
             <input type="email" name="email" id="id_email" class="w-full rounded-lg border-0 bg-gray-100 py-3 pl-10 pr-4 text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.email.value|default:'' }}" autocomplete="email">
@@ -83,7 +83,7 @@
           <div class="mt-1 text-sm text-red-700">{{ form.password2.errors }}</div>
         </div>
         <div>
-          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_role">Account role</label>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_role">Account type</label>
           <select name="role" id="id_role" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-3 text-sm text-slate-900 focus:ring-2 focus:ring-slate-500">
             {% for val, label in form.fields.role.choices %}
               <option value="{{ val }}" {% if form.role.value == val or not form.role.value and val == 'worker' %}selected{% endif %}>{{ label }}</option>
@@ -91,15 +91,25 @@
           </select>
           <div class="mt-1 text-sm text-red-700">{{ form.role.errors }}</div>
         </div>
+        <div id="trade-wrap">
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_trade">Trade</label>
+          <select name="trade" id="id_trade" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-3 text-sm text-slate-900 focus:ring-2 focus:ring-slate-500">
+            {% for val, label in form.fields.trade.choices %}
+              <option value="{{ val }}" {% if form.trade.value == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <p class="mt-1 text-xs text-slate-500">Plumber, electrician, or general technician.</p>
+          <div class="mt-1 text-sm text-red-700">{{ form.trade.errors }}</div>
+        </div>
         <div>
-          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_registration_code">Registration code (workers)</label>
-          <input type="text" name="registration_code" id="id_registration_code" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-4 font-mono text-sm uppercase tracking-wide text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.registration_code.value|default:'' }}" placeholder="From your admin" autocomplete="off">
-          <p class="mt-1 text-xs text-slate-500">If your organization pre-registered you, enter the code they gave you. Leave blank for open worker signup.</p>
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_registration_code">Registration code (field technicians)</label>
+          <input type="text" name="registration_code" id="id_registration_code" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-4 font-mono text-sm uppercase tracking-wide text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.registration_code.value|default:'' }}" placeholder="From your facility manager" autocomplete="off">
+          <p class="mt-1 text-xs text-slate-500">If your facility manager pre-registered you, enter the code they gave you. Leave blank for open signup.</p>
           <div class="mt-1 text-sm text-red-700">{{ form.registration_code.errors }}</div>
         </div>
         <div>
-          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_worker_name">Full name (workers)</label>
-          <input type="text" name="worker_name" id="id_worker_name" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-4 text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.worker_name.value|default:'' }}" placeholder="Jane Operator">
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_worker_name">Full name (field technicians)</label>
+          <input type="text" name="worker_name" id="id_worker_name" class="w-full rounded-lg border-0 bg-gray-100 py-3 px-4 text-slate-900 focus:ring-2 focus:ring-slate-500" value="{{ form.worker_name.value|default:'' }}" placeholder="Your name">
           <div class="mt-1 text-sm text-red-700">{{ form.worker_name.errors }}</div>
         </div>
         <div>
@@ -108,7 +118,7 @@
           <div class="mt-1 text-sm text-red-700">{{ form.employee_id.errors }}</div>
         </div>
         <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 py-4 text-sm font-bold text-white transition hover:bg-slate-700">
-          Initialize registration
+          Create account
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         </button>
       </form>
@@ -121,4 +131,23 @@
     </p>
   </div>
 </div>
+<script>
+(function () {
+  var role = document.getElementById('id_role');
+  var wrap = document.getElementById('trade-wrap');
+  var trade = document.getElementById('id_trade');
+  if (!role || !wrap || !trade) return;
+  function sync() {
+    var isTech = role.value === 'worker';
+    wrap.classList.toggle('hidden', !isTech);
+    if (isTech) {
+      trade.setAttribute('required', 'required');
+    } else {
+      trade.removeAttribute('required');
+    }
+  }
+  role.addEventListener('change', sync);
+  sync();
+})();
+</script>
 {% endblock %}

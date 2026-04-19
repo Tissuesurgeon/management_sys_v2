@@ -1,12 +1,43 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}Profile — FRx OPS{% endblock %}
+{% block title %}Profile — FM OPS{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-lg">
-  {% include "workforce/includes/page_header.html" with eyebrow="Account" title="Profile" subtitle="Your name, email, and profile photo." %}
-  <form method="post" enctype="multipart/form-data" class="space-y-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+<div class="mx-auto max-w-5xl px-4 pb-12 pt-2 sm:px-6">
+
+  <section class="mb-6 lg:hidden" aria-label="Profile">
+    {% include "workforce/includes/profile_admin_hero_mobile.html" %}
+  </section>
+
+  <div class="space-y-5 rounded-3xl bg-slate-100/90 p-4 shadow-inner lg:hidden">
+    {% include "workforce/includes/profile_admin_performance.html" with perf_heading_id="admin-perf-m" %}
+    {% include "workforce/includes/profile_admin_shortcuts.html" with short_heading_id="admin-short-m" %}
+    {% include "workforce/includes/profile_admin_organization.html" with org_heading_id="admin-org-m" %}
+    {% include "workforce/includes/profile_admin_department.html" with dept_heading_id="admin-dept-m" %}
+  </div>
+
+  <div class="mb-4 hidden gap-4 lg:grid lg:grid-cols-3 lg:items-stretch">
+    {% include "workforce/includes/profile_admin_identity_card.html" %}
+    <div class="flex h-full min-h-0 flex-col rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      {% include "workforce/includes/profile_admin_performance.html" with perf_heading_id="admin-perf-d" %}
+    </div>
+    <div class="flex h-full min-h-0 flex-col rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      {% include "workforce/includes/profile_admin_shortcuts.html" with short_heading_id="admin-short-d" %}
+    </div>
+  </div>
+
+  <div class="mb-6 hidden gap-4 lg:grid lg:grid-cols-3 lg:items-stretch">
+    <div class="lg:col-span-2 flex min-h-0 flex-col rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      {% include "workforce/includes/profile_admin_organization.html" with org_heading_id="admin-org-d" %}
+    </div>
+    <div class="min-h-0">
+      {% include "workforce/includes/profile_admin_department.html" with dept_heading_id="admin-dept-d" %}
+    </div>
+  </div>
+
+  <form id="edit-profile" method="post" enctype="multipart/form-data" class="mt-8 space-y-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm lg:mt-6{% if not user_form.errors and not photo_form.errors %} hidden{% endif %}">
     {% csrf_token %}
+    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Account settings</h2>
     <div>
-      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Account</h2>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Account</h3>
       <div class="space-y-4">
         {% for field in user_form %}
           <div>
@@ -18,7 +49,7 @@
       </div>
     </div>
     <div>
-      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Photo</h2>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Photo</h3>
       {% if profile.photo %}
         <div class="mb-3 flex items-center gap-3">
           <img src="{{ profile.photo.url }}" alt="" class="h-16 w-16 rounded-full object-cover ring-2 ring-slate-100" width="64" height="64">
@@ -36,4 +67,23 @@
     <button type="submit" class="w-full rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700">Save</button>
   </form>
 </div>
+<script>
+(function () {
+  var form = document.getElementById('edit-profile');
+  if (!form) return;
+  function reveal() {
+    form.classList.remove('hidden');
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  document.querySelectorAll('[data-edit-profile]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      reveal();
+    });
+  });
+  if (window.location.hash === '#edit-profile') {
+    reveal();
+  }
+})();
+</script>
 {% endblock %}

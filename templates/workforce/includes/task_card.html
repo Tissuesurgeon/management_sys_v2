@@ -7,9 +7,12 @@
   <div class="absolute left-0 top-0 h-full w-1 {% if t.color == 'green' %}bg-emerald-400{% elif t.color == 'orange' %}bg-amber-400{% elif t.color == 'red' %}bg-rose-400{% else %}bg-sky-400{% endif %}" aria-hidden></div>
   <div class="pl-3">
     <div class="flex items-start justify-between gap-2">
-      <div>
+      <div class="min-w-0">
         <p class="font-semibold text-slate-900">{{ t.title }}</p>
         <p class="mt-0.5 text-sm text-slate-500">{{ t.location }}</p>
+        {% if t.description %}
+          <p class="mt-2 line-clamp-2 text-sm text-slate-600">{{ t.description }}</p>
+        {% endif %}
       </div>
       <div class="flex items-center gap-2">
         {% include "workforce/includes/status_badge.html" with status=row.status label=None %}
@@ -18,7 +21,7 @@
     <div class="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
       <span class="font-medium text-slate-700">{{ t.due_time }}</span>
       {% if show_worker %}
-        <span class="text-slate-500">{{ worker_name }}</span>
+        <span class="text-slate-500">Trade: {{ worker_name }}</span>
       {% endif %}
     </div>
   </div>

@@ -1,5 +1,5 @@
 {% extends "workforce/base_worker.html" %}
-{% block title %}My tasks — FRx OPS{% endblock %}
+{% block title %}My tasks — FM OPS{% endblock %}
 {% block content %}
 <div>
   {% include "workforce/includes/page_header.html" with eyebrow="Operational overview" title="My tasks" subtitle="Today's assignments from your organization's schedule." %}
@@ -12,7 +12,7 @@
 
   <div class="space-y-3">
     {% for row in merged_tasks %}
-      {% url 'workforce:worker_task_detail' row.task.source_event_id row.task.date_key_str as task_link %}
+      {% url 'workforce:worker_task_detail' row.task.source_task_id row.task.date_key_str as task_link %}
       {% include "workforce/includes/task_card.html" with row=row show_worker=False link_url=task_link %}
     {% empty %}
       <p class="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-500">No tasks assigned for you today.</p>

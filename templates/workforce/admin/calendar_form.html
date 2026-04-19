@@ -1,8 +1,8 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}{{ title }} — FRx OPS{% endblock %}
+{% block title %}{{ title }} — FM OPS{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-2xl">
-  {% include "workforce/includes/page_header.html" with eyebrow="Scheduling" title=title subtitle="Add or update a calendar event." %}
+  {% include "workforce/includes/page_header.html" with eyebrow="Maintenance" title=title subtitle="Set title, description, and checklist. Assign a technician (plumber, electrician, or general technician). The schedule and their tasks are built from these records." %}
   <form method="post" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
     {% csrf_token %}
     {% for field in form %}

@@ -1,10 +1,21 @@
+from datetime import date
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.forms import formset_factory
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.utils import timezone as dj_tz
 
-from workforce.models import CalendarEvent, Profile, TaskState, Worker, WorkerInvitation
+from workforce.models import (
+    MaintenanceTask,
+    Profile,
+    TaskState,
+    Worker,
+    WorkerInvitation,
+    WorkerPasswordResetCode,
+)
 
 try:
     from PIL import Image
@@ -17,17 +28,29 @@ _TA = 'w-full rounded-xl border-0 bg-slate-100 px-4 py-3 text-sm text-slate-900 
 _SEL = 'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500'
 
 
+def _configure_assigned_trade_field(field):
+    """Which trade pool can see and complete this task (all matching technicians)."""
+    field.label = 'Assigned trade'
+    field.help_text = 'Every technician with this trade sees the task until someone completes it.'
+
+
 class SignupForm(UserCreationForm):
     role = forms.ChoiceField(
         choices=Profile.Role.choices,
         initial=Profile.Role.WORKER,
-        label='Role',
+        label='Account type',
+    )
+    trade = forms.ChoiceField(
+        choices=[('', 'Select trade')] + list(Worker.Trade.choices),
+        required=False,
+        label='Trade',
+        help_text='Required for field technicians (plumber, electrician, or general technician).',
     )
     worker_name = forms.CharField(
         max_length=200,
         required=False,
-        label='Full name (workers)',
-        help_text='Required when registering as a worker (unless you use an admin invite code).',
+        label='Full name (field technicians)',
+        help_text='Required when registering as a field technician (unless you use a registration code from your facility manager).',
     )
     employee_id = forms.CharField(max_length=64, required=False, label='Employee ID')
     registration_code = forms.CharField(
@@ -47,6 +70,22 @@ class SignupForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
         fields = ('username', 'email')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order_fields(
+            [
+                'username',
+                'email',
+                'password1',
+                'password2',
+                'role',
+                'trade',
+                'registration_code',
+                'worker_name',
+                'employee_id',
+            ],
+        )
 
     def clean(self):
         data = super().clean()
@@ -69,25 +108,108 @@ class SignupForm(UserCreationForm):
             if not email_ok:
                 self.add_error(
                     'email',
-                    'Use the same email address your administrator registered for this invite.',
+                    'Use the same email address your facility manager registered for this invite.',
                 )
             if not emp_ok:
                 self.add_error(
                     'employee_id',
-                    'Enter the employee ID your administrator registered for this invite.',
+                    'Enter the employee ID your facility manager registered for this invite.',
                 )
             if email_ok and emp_ok:
                 self._invitation = inv
                 if not name:
                     data['worker_name'] = inv.name
         elif role == Profile.Role.WORKER and not name:
-            self.add_error('worker_name', 'Full name is required for worker accounts.')
+            self.add_error('worker_name', 'Full name is required for field technician accounts.')
+
+        if role == Profile.Role.WORKER:
+            inv = getattr(self, '_invitation', None)
+            trade = (data.get('trade') or '').strip()
+            if inv and inv.trade:
+                if trade and trade != inv.trade:
+                    self.add_error(
+                        'trade',
+                        'This registration code is for a different trade.',
+                    )
+                else:
+                    data['trade'] = inv.trade
+            elif not trade:
+                self.add_error('trade', 'Select your trade.')
+            else:
+                data['trade'] = trade
+
         return data
 
 
-class CalendarEventForm(forms.ModelForm):
+class PasswordResetWithCodeForm(forms.Form):
+    username = forms.CharField(
+        label='Username',
+        max_length=150,
+        widget=forms.TextInput(attrs={'class': _IN, 'autocomplete': 'username'}),
+    )
+    code = forms.CharField(
+        label='Reset code',
+        max_length=64,
+        widget=forms.TextInput(attrs={'class': _IN, 'autocomplete': 'off'}),
+    )
+    password1 = forms.CharField(
+        label='New password',
+        widget=forms.PasswordInput(attrs={'class': _IN, 'autocomplete': 'new-password'}),
+    )
+    password2 = forms.CharField(
+        label='Confirm new password',
+        widget=forms.PasswordInput(attrs={'class': _IN, 'autocomplete': 'new-password'}),
+    )
+
+    def clean(self):
+        data = super().clean()
+        if self.errors:
+            return data
+        username = (data.get('username') or '').strip()
+        code = (data.get('code') or '').strip()
+        p1 = data.get('password1')
+        p2 = data.get('password2')
+        if not username or not code:
+            return data
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            self.add_error('username', 'No account with that username.')
+            return data
+        prof = Profile.objects.filter(user=user).first()
+        if not prof or prof.role != Profile.Role.WORKER:
+            self.add_error(
+                'username',
+                'Password reset with a code is only available for field technician accounts.',
+            )
+            return data
+        now = dj_tz.now()
+        row = WorkerPasswordResetCode.objects.filter(
+            user=user,
+            code__iexact=code,
+            used_at__isnull=True,
+            expires_at__gt=now,
+        ).first()
+        if not row:
+            self.add_error('code', 'Invalid, expired, or already used code.')
+            return data
+        self._reset_row = row
+        self._user = user
+        if p1 != p2:
+            self.add_error('password2', 'The two password fields do not match.')
+            return data
+        if p1:
+            try:
+                validate_password(p1, user=user)
+            except ValidationError as exc:
+                for err in exc.messages:
+                    self.add_error('password1', err)
+        return data
+
+
+class MaintenanceTaskForm(forms.ModelForm):
     checklist_text = forms.CharField(
-        label='Checklist (one per line)',
+        label='Task checklist (one item per line)',
         widget=forms.Textarea(
             attrs={
                 'rows': 3,
@@ -99,26 +221,34 @@ class CalendarEventForm(forms.ModelForm):
     )
 
     class Meta:
-        model = CalendarEvent
+        model = MaintenanceTask
         fields = [
             'title',
+            'description',
             'location',
             'start',
             'duration_minutes',
-            'assigned_worker',
+            'assigned_trade',
             'recurrence_type',
             'recurrence_end',
             'color',
         ]
         widgets = {
             'title': forms.TextInput(attrs={'class': _IN}),
+            'description': forms.Textarea(
+                attrs={
+                    'class': _TA,
+                    'rows': 4,
+                    'placeholder': 'Instructions or context shown on the task detail screen',
+                },
+            ),
             'location': forms.TextInput(attrs={'class': _IN}),
             'start': forms.DateTimeInput(
                 attrs={'type': 'datetime-local', 'class': _IN},
                 format='%Y-%m-%dT%H:%M',
             ),
             'duration_minutes': forms.NumberInput(attrs={'class': _IN, 'min': 1}),
-            'assigned_worker': forms.Select(attrs={'class': _SEL}),
+            'assigned_trade': forms.Select(attrs={'class': _SEL}),
             'recurrence_type': forms.Select(attrs={'class': _SEL}),
             'recurrence_end': forms.DateInput(attrs={'type': 'date', 'class': _IN}),
             'color': forms.Select(attrs={'class': _SEL}),
@@ -126,11 +256,26 @@ class CalendarEventForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.order_fields(
+            [
+                'title',
+                'description',
+                'checklist_text',
+                'location',
+                'start',
+                'duration_minutes',
+                'assigned_trade',
+                'recurrence_type',
+                'recurrence_end',
+                'color',
+            ],
+        )
         self.fields['start'].input_formats = [
             '%Y-%m-%dT%H:%M',
             '%Y-%m-%d %H:%M:%S',
             '%Y-%m-%d %H:%M',
         ]
+        _configure_assigned_trade_field(self.fields['assigned_trade'])
         if self.instance.pk:
             if self.instance.checklist:
                 self.initial['checklist_text'] = '\n'.join(self.instance.checklist)
@@ -152,6 +297,139 @@ class CalendarEventForm(forms.ModelForm):
         return obj
 
 
+def make_maintenance_task_bulk_row_form(first_day: date, last_day: date):
+    """Single row for bulk month create; ``first_day`` / ``last_day`` bound the allowed ``start`` date."""
+
+    class MaintenanceTaskBulkRowForm(forms.Form):
+        title = forms.CharField(
+            max_length=500,
+            required=False,
+            widget=forms.TextInput(attrs={'class': _IN, 'placeholder': 'Task title'}),
+        )
+        description = forms.CharField(
+            required=False,
+            widget=forms.Textarea(
+                attrs={
+                    'class': _TA,
+                    'rows': 2,
+                    'placeholder': 'Optional description',
+                },
+            ),
+        )
+        checklist_text = forms.CharField(
+            label='Checklist (one line per item)',
+            required=False,
+            widget=forms.Textarea(
+                attrs={
+                    'rows': 2,
+                    'placeholder': 'One item per line',
+                    'class': _TA,
+                },
+            ),
+        )
+        location = forms.CharField(
+            max_length=500,
+            required=False,
+            widget=forms.TextInput(attrs={'class': _IN, 'placeholder': 'Location'}),
+        )
+        start = forms.DateTimeField(
+            required=False,
+            widget=forms.DateTimeInput(
+                attrs={'type': 'datetime-local', 'class': _IN},
+                format='%Y-%m-%dT%H:%M',
+            ),
+        )
+        duration_minutes = forms.IntegerField(
+            min_value=1,
+            max_value=24 * 60,
+            initial=60,
+            required=False,
+            widget=forms.NumberInput(attrs={'class': _IN, 'min': 1}),
+        )
+        assigned_trade = forms.ChoiceField(
+            choices=Worker.Trade.choices,
+            required=False,
+            widget=forms.Select(attrs={'class': _SEL}),
+        )
+        recurrence_type = forms.ChoiceField(
+            choices=MaintenanceTask.Recurrence.choices,
+            initial=MaintenanceTask.Recurrence.NONE,
+            required=False,
+            widget=forms.Select(attrs={'class': _SEL}),
+        )
+        recurrence_end = forms.DateField(
+            required=False,
+            widget=forms.DateInput(attrs={'type': 'date', 'class': _IN}),
+        )
+        color = forms.ChoiceField(
+            choices=MaintenanceTask.Color.choices,
+            initial=MaintenanceTask.Color.BLUE,
+            required=False,
+            widget=forms.Select(attrs={'class': _SEL}),
+        )
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.fields['start'].input_formats = [
+                '%Y-%m-%dT%H:%M',
+                '%Y-%m-%d %H:%M:%S',
+                '%Y-%m-%d %H:%M',
+            ]
+            _configure_assigned_trade_field(self.fields['assigned_trade'])
+
+        def clean_checklist_text(self):
+            raw = self.cleaned_data.get('checklist_text') or ''
+            lines = [x.strip() for x in raw.splitlines() if x.strip()]
+            return lines if lines else ['Verify completion']
+
+        def clean_start(self):
+            title = (self.cleaned_data.get('title') or '').strip()
+            st = self.cleaned_data.get('start')
+            if not title:
+                return st
+            if not st:
+                return st
+            if dj_tz.is_naive(st):
+                st = dj_tz.make_aware(st, dj_tz.get_current_timezone())
+            d = dj_tz.localtime(st).date()
+            if not (first_day <= d <= last_day):
+                raise ValidationError(
+                    'Start date must fall within the selected month.',
+                )
+            return st
+
+        def clean(self):
+            cleaned = super().clean()
+            title = (cleaned.get('title') or '').strip()
+            if not title:
+                return cleaned
+            if not cleaned.get('start'):
+                self.add_error('start', 'Start date and time are required when a title is set.')
+            if not cleaned.get('assigned_trade'):
+                self.add_error('assigned_trade', 'Select a trade when a title is set.')
+            dm = cleaned.get('duration_minutes')
+            if dm is None:
+                cleaned['duration_minutes'] = 60
+            rtype = cleaned.get('recurrence_type') or MaintenanceTask.Recurrence.NONE
+            if rtype != MaintenanceTask.Recurrence.NONE and not cleaned.get('recurrence_end'):
+                cleaned['recurrence_end'] = last_day
+            return cleaned
+
+    return MaintenanceTaskBulkRowForm
+
+
+def maintenance_task_bulk_formset_factory(first_day: date, last_day: date, *, extra: int = 1):
+    RowForm = make_maintenance_task_bulk_row_form(first_day, last_day)
+    return formset_factory(
+        RowForm,
+        extra=extra,
+        min_num=0,
+        max_num=50,
+        validate_max=True,
+        can_delete=False,
+    )
+
+
 class WorkerInvitationForm(forms.ModelForm):
     class Meta:
         model = WorkerInvitation
@@ -162,6 +440,7 @@ class WorkerInvitationForm(forms.ModelForm):
             'title',
             'department',
             'facility_location',
+            'trade',
         ]
         widgets = {
             'email': forms.EmailInput(attrs={'class': _IN, 'placeholder': 'worker@company.com (optional)'}),
@@ -170,7 +449,19 @@ class WorkerInvitationForm(forms.ModelForm):
             'title': forms.TextInput(attrs={'class': _IN}),
             'department': forms.TextInput(attrs={'class': _IN}),
             'facility_location': forms.TextInput(attrs={'class': _IN}),
+            'trade': forms.Select(attrs={'class': _SEL}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['trade'].required = False
+        self.fields['trade'].choices = [
+            ('', 'Any trade (optional)'),
+        ] + list(Worker.Trade.choices)
+
+    def clean_trade(self):
+        t = self.cleaned_data.get('trade')
+        return t if t else None
 
 
 class UserAccountForm(forms.ModelForm):
@@ -219,13 +510,14 @@ class ProfilePhotoForm(forms.ModelForm):
 class WorkerProfileForm(forms.ModelForm):
     class Meta:
         model = Worker
-        fields = ['name', 'title', 'department', 'employee_id', 'facility_location']
+        fields = ['name', 'title', 'department', 'employee_id', 'facility_location', 'trade']
         widgets = {
             'name': forms.TextInput(attrs={'class': _IN}),
             'title': forms.TextInput(attrs={'class': _IN}),
             'department': forms.TextInput(attrs={'class': _IN}),
             'employee_id': forms.TextInput(attrs={'class': _IN}),
             'facility_location': forms.TextInput(attrs={'class': _IN}),
+            'trade': forms.Select(attrs={'class': _SEL}),
         }
 
 

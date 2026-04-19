@@ -1,7 +1,7 @@
 {% if messages %}
-  <div class="mb-4 space-y-2">
+  <div class="mb-4 min-w-0 max-w-full space-y-2">
     {% for message in messages %}
-      <div class="rounded-xl border px-4 py-3 text-sm shadow-sm
+      <div class="min-w-0 break-words rounded-xl border px-4 py-3 text-sm shadow-sm
         {% if message.tags == 'success' %}border-emerald-200 bg-emerald-50 text-emerald-900
         {% elif message.tags == 'danger' %}border-red-200 bg-red-50 text-red-900
         {% elif message.tags == 'warning' %}border-amber-200 bg-amber-50 text-amber-900

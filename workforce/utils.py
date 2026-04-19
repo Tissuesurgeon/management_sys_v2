@@ -2,7 +2,7 @@ from workforce.models import Profile
 
 
 def ensure_profile(user) -> Profile:
-    """Return Profile, creating one if missing. Superusers default to org admin."""
+    """Return Profile, creating one if missing. Superusers default to facility manager (org_admin)."""
     prof, created = Profile.objects.get_or_create(
         user=user,
         defaults={'role': Profile.Role.WORKER},

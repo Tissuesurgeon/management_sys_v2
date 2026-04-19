@@ -1,6 +1,6 @@
-# FRx OPS — Workforce management 
+# FM OPS — Workforce management 
 
-**FRx OPS** is a web application for organizations that schedule field work, assign it to staff, and track completion. This repository is a **server-rendered** implementation built with **Django 5**: HTML templates, a SQLite database in development, and **Tailwind CSS** (via CDN) for a responsive UI with a desktop sidebar and mobile bottom navigation.
+**FM OPS** is a web application for organizations that schedule field work, assign it to staff, and track completion. This repository is a **server-rendered** implementation built with **Django 5**: HTML templates, a SQLite database in development, and **Tailwind CSS** (via CDN) for a responsive UI with a desktop sidebar and mobile bottom navigation.
 
 The app was created as a successor to a React single-page app (`Management_sys`). It follows similar URL patterns and behavior where it makes sense, but it is a separate codebase and does not import code from that project.
 
@@ -8,21 +8,21 @@ The app was created as a successor to a React single-page app (`Management_sys`)
 
 ## Who it is for
 
-- **Organization admins** plan the calendar, see tasks by day, manage the worker roster, import schedules from spreadsheets, review a **task report** of saved work, pre-register workers with **invitation codes**, and maintain their own profile (including a photo).
-- **Workers** see their tasks for a given day, browse a monthly schedule, review completed history, update their profile, and open each assignment to update **status**, **notes**, **checklist**, and **photo count**—all persisted in the database.
+- **Facility managers** plan the calendar, see tasks by day, manage the technician roster, import schedules from spreadsheets, review a **task report** of saved work, pre-register field technicians with **invitation codes**, generate **password reset codes** for technicians who forgot their password, and maintain their own profile (including a photo).
+- **Field technicians** (plumbers, electricians, general technicians) see their tasks for a given day, browse a monthly schedule, review completed history, update their profile, and open each assignment to update **status**, **notes**, **checklist**, and **photo count**—all persisted in the database. If they forget their password, they use **Forgot password?** on the sign-in page together with a **one-time code** from a facility manager (valid about 48 hours, single use).
 
-Access is controlled by a `Profile` role: `org_admin` or `worker`. Sign-up supports open registration or, for workers, a **registration code** issued by an admin (optionally tied to an email and/or employee ID).
+Access is controlled by a `Profile` role: `org_admin` (shown in the UI as **Facility manager**) or `worker` (**Field technician**). Sign-up supports open registration or, for technicians, a **registration code** issued by a facility manager (optionally tied to an email, employee ID, and/or trade).
 
 ---
 
 ## What the system does
 
-- **Calendar and recurrence** — Admins create **calendar events** (title, time, location, assigned worker, recurrence, checklist, color). The app expands recurrence into **derived tasks** per day using rules aligned with the original React app.
+- **Calendar and recurrence** — Facility managers create **maintenance tasks** (title, time, location, assigned technician, recurrence, checklist, color). The app expands recurrence into **derived tasks** per day using rules aligned with the original React app.
 - **Stable task identity** — Each derived occurrence has an ID of the form `{event_id}::{YYYY-MM-DD}` so the same logical task can be updated over time.
-- **Persisted task state** — Workers’ progress is stored in **`TaskState`** (status, notes, checklist completion, photo count, last saved time). List views merge generated tasks with this saved state.
-- **Imports** — Admins can upload **CSV** or **XLSX** files to bulk-create calendar events (OpenPyXL).
-- **Worker registration** — Admins create **`WorkerInvitation`** records with a generated **invite code** and optional email/employee ID constraints; workers enter the code (and matching details) at sign-up so roster data lines up with HR records.
-- **Reporting** — Admins can open a **detailed task report** with filters (date range, worker, status), pagination, and columns for activity, worker, status, checklist progress, photos, and notes.
+- **Persisted task state** — Technicians’ progress is stored in **`TaskState`** (status, notes, checklist completion, photo count, last saved time). List views merge generated tasks with this saved state.
+- **Imports** — Facility managers can upload **CSV** or **XLSX** files to bulk-create calendar events (OpenPyXL).
+- **Technician registration** — Facility managers create **`WorkerInvitation`** records with a generated **invite code** and optional email/employee ID/trade constraints; technicians enter the code (and matching details) at sign-up so roster data lines up with your records.
+- **Reporting** — Facility managers can open a **detailed task report** with filters (date range, worker, status), pagination, and columns for activity, worker, status, checklist progress, photos, and notes.
 
 Django’s built-in **admin site** is available at **`/django-admin/`** for staff and models. The **organization** admin UI lives under **`/admin/`** (not under `/django-admin/`) so those paths stay clear for operators.
 
@@ -71,13 +71,19 @@ python manage.py runserver
 
 **3. Use the app**
 
-Open `http://127.0.0.1:8000/`. Log in or use **Sign up** as an organization admin or worker. Optional demo data:
-
-```bash
-python manage.py seed_demo
-```
+Open `http://127.0.0.1:8000/`. Log in or use **Sign up** as a facility manager or field technician, then add technicians through registration codes or open sign-up as needed.
 
 The project **`.gitignore`** excludes `.env`, `db.sqlite3`, `media/`, virtual environments, and other local or sensitive files. Do not commit production secrets or databases.
+
+---
+
+## Purging technician accounts (destructive)
+
+To remove all field technician accounts and related data in development (deletes `TaskState` rows, then all users with the technician role—which CASCADE-deletes their `Worker` rows and assigned `MaintenanceTask` rows; **facility manager accounts are kept**):
+
+```bash
+python manage.py purge_workers --yes
+```
 
 ---
 

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import calendar
+import re
 from datetime import date, datetime, timedelta
+from io import BytesIO
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
@@ -11,23 +14,32 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
 from workforce.decorators import org_admin_required, worker_required
 from workforce.forms import (
-    CalendarEventForm,
+    MaintenanceTaskForm,
+    PasswordResetWithCodeForm,
     ProfilePhotoForm,
     SignupForm,
     TaskStateUpdateForm,
     UserAccountForm,
     WorkerInvitationForm,
     WorkerProfileForm,
+    maintenance_task_bulk_formset_factory,
 )
-from workforce.import_parser import create_events_from_import, parse_uploaded_file
-from workforce.models import CalendarEvent, Profile, TaskState, Worker, WorkerInvitation
+from workforce.models import (
+    MaintenanceTask,
+    Profile,
+    TaskState,
+    Worker,
+    WorkerInvitation,
+    WorkerPasswordResetCode,
+    generate_unique_password_reset_code,
+)
 from workforce.utils import ensure_profile
 from workforce.services.date_utils import date_key, parse_date_key
 from workforce.services.tasks import (
@@ -35,10 +47,40 @@ from workforce.services.tasks import (
     generate_tasks_from_calendar,
     merge_task_state,
     parse_derived_task_id,
+    trade_label,
 )
+
+try:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
+except ImportError:  # pragma: no cover
+    Workbook = None  # type: ignore[misc, assignment]
+    Font = None  # type: ignore[misc, assignment]
+    get_column_letter = None  # type: ignore[misc, assignment]
 
 def _profile(request):
     return ensure_profile(request.user)
+
+
+def _active_merged_tasks(
+    events: List[MaintenanceTask],
+    day: date,
+    *,
+    worker_trade: Optional[str] = None,
+    viewer_worker_pk: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Generated tasks for ``day`` with TaskState merged in; drops completed (hidden from all users)."""
+    tasks = generate_tasks_from_calendar(
+        events,
+        day,
+        worker_trade=worker_trade,
+        viewer_worker_pk=viewer_worker_pk,
+    )
+    ids = [t.id for t in tasks]
+    state_map = collect_state_map_for_ids(ids)
+    merged = merge_task_state(tasks, state_map)
+    return [r for r in merged if r.get('status') != TaskState.Status.COMPLETED]
 
 
 def _enrich_task_states_for_report(states: List[TaskState]) -> List[Dict[str, Any]]:
@@ -48,10 +90,7 @@ def _enrich_task_states_for_report(states: List[TaskState]) -> List[Dict[str, An
         eid, _ = parse_derived_task_id(st.derived_task_id)
         if eid is not None:
             eids.append(eid)
-    events = {
-        e.pk: e
-        for e in CalendarEvent.objects.select_related('assigned_worker').filter(pk__in=set(eids))
-    }
+    events = {e.pk: e for e in MaintenanceTask.objects.filter(pk__in=set(eids))}
     rows: List[Dict[str, Any]] = []
     for st in states:
         eid, task_date = parse_derived_task_id(st.derived_task_id)
@@ -68,7 +107,7 @@ def _enrich_task_states_for_report(states: List[TaskState]) -> List[Dict[str, An
                 'state': st,
                 'event': ev,
                 'task_date': task_date,
-                'worker_name': ev.assigned_worker.name if ev and ev.assigned_worker else '—',
+                'worker_name': trade_label(ev.assigned_trade) if ev else '—',
                 'checklist_done_count': n_done,
                 'checklist_total': len(checklist),
                 'title': ev.title if ev else 'Unknown or deleted event',
@@ -78,11 +117,69 @@ def _enrich_task_states_for_report(states: List[TaskState]) -> List[Dict[str, An
     return rows
 
 
-def _local_event_start_date_key(ev: CalendarEvent) -> str:
+def _completed_task_states_for_worker(worker: Worker):
+    """Persisted task rows for this worker with status completed (via calendar event assignment)."""
+    eids = list(
+        MaintenanceTask.objects.filter(assigned_trade=worker.trade).values_list('pk', flat=True),
+    )
+    base = TaskState.objects.filter(status=TaskState.Status.COMPLETED).order_by('-last_saved_at')
+    if not eids:
+        return base.none()
+    q = Q()
+    for eid in eids:
+        q |= Q(derived_task_id__startswith=f'{eid}::')
+    return base.filter(q)
+
+
+def _local_task_start_date_key(ev: MaintenanceTask) -> str:
     s = ev.start
     if timezone.is_naive(s):
         s = timezone.make_aware(s, timezone.get_current_timezone())
     return date_key(timezone.localtime(s).date())
+
+
+def _upcoming_events_for_worker(worker: Worker, limit: int = 5) -> List[Dict[str, Any]]:
+    """Calendar rows for profile: not yet ended, ordered by start; status queued vs in progress."""
+    now = timezone.now()
+    rows: List[Dict[str, Any]] = []
+    for ev in MaintenanceTask.objects.filter(assigned_trade=worker.trade).order_by('start')[:120]:
+        start = ev.start
+        if timezone.is_naive(start):
+            start = timezone.make_aware(start, timezone.get_current_timezone())
+        end = start + timedelta(minutes=ev.duration_minutes)
+        if end <= now:
+            continue
+        if now < start:
+            status_key = 'queued'
+            status_label = 'QUEUED'
+        else:
+            status_key = 'in_progress'
+            status_label = 'IN PROGRESS'
+        rows.append(
+            {
+                'event': ev,
+                'status_key': status_key,
+                'status_label': status_label,
+                'date_key': _local_task_start_date_key(ev),
+            },
+        )
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+def _admin_profile_stats() -> Dict[str, int]:
+    today = timezone.localdate()
+    events_list = list(MaintenanceTask.objects.all())
+    today_tasks_count = len(_active_merged_tasks(events_list, today))
+    return {
+        'worker_count': Worker.objects.count(),
+        'today_tasks_count': today_tasks_count,
+        'completed_today': TaskState.objects.filter(
+            status=TaskState.Status.COMPLETED,
+            last_saved_at__date=today,
+        ).count(),
+    }
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -118,7 +215,7 @@ def signup(request: HttpRequest) -> HttpResponse:
                 if inv_locked.claimed_at:
                     messages.error(
                         request,
-                        'This registration code was already used. Ask your admin for a new one.',
+                        'This registration code was already used. Ask your facility manager for a new one.',
                     )
                     return render(request, 'workforce/signup.html', {'form': form})
             user = form.save(commit=False)
@@ -134,6 +231,7 @@ def signup(request: HttpRequest) -> HttpResponse:
                     department=inv_locked.department,
                     employee_id=inv_locked.employee_id or (form.cleaned_data.get('employee_id') or '').strip(),
                     facility_location=inv_locked.facility_location,
+                    trade=form.cleaned_data['trade'],
                 )
                 inv_locked.claimed_at = timezone.now()
                 inv_locked.claimed_by = user
@@ -143,6 +241,7 @@ def signup(request: HttpRequest) -> HttpResponse:
                     user=user,
                     name=form.cleaned_data['worker_name'].strip(),
                     employee_id=form.cleaned_data.get('employee_id') or '',
+                    trade=form.cleaned_data['trade'],
                 )
         login(request, user)
         messages.success(request, 'Account created.')
@@ -156,13 +255,36 @@ def logout_view(request: HttpRequest) -> HttpResponse:
     return redirect('workforce:login')
 
 
+def password_reset_with_code(request: HttpRequest) -> HttpResponse:
+    if request.user.is_authenticated:
+        return redirect('workforce:home')
+    form = PasswordResetWithCodeForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        user = form._user
+        row = form._reset_row
+        with transaction.atomic():
+            locked = WorkerPasswordResetCode.objects.select_for_update().get(pk=row.pk)
+            if locked.used_at or locked.expires_at <= timezone.now():
+                messages.error(
+                    request,
+                    'This code is no longer valid. Ask your facility manager for a new one.',
+                )
+                return render(request, 'workforce/password_reset.html', {'form': form})
+            user.set_password(form.cleaned_data['password1'])
+            user.save()
+            locked.used_at = timezone.now()
+            locked.save()
+        messages.success(request, 'Your password has been reset. You can sign in now.')
+        return redirect('workforce:login')
+    return render(request, 'workforce/password_reset.html', {'form': form})
+
+
 @org_admin_required
 def admin_dashboard(request: HttpRequest) -> HttpResponse:
     today = timezone.localdate()
     worker_count = Worker.objects.count()
-    events_qs = CalendarEvent.objects.select_related('assigned_worker').all()
-    today_tasks = generate_tasks_from_calendar(list(events_qs), timezone.localtime())
-    today_tasks_count = len(today_tasks)
+    events_list = list(MaintenanceTask.objects.all())
+    today_tasks_count = len(_active_merged_tasks(events_list, today))
     completed_today = TaskState.objects.filter(
         status=TaskState.Status.COMPLETED,
         last_saved_at__date=today,
@@ -210,7 +332,7 @@ def admin_calendar_list(request: HttpRequest) -> HttpResponse:
     else:
         selected_date = today
 
-    events_qs = CalendarEvent.objects.select_related('assigned_worker').all()
+    events_qs = MaintenanceTask.objects.all()
     events_list = list(events_qs)
     event_count = len(events_list)
 
@@ -227,9 +349,7 @@ def admin_calendar_list(request: HttpRequest) -> HttpResponse:
     tasks_by_day: Dict[str, int] = {}
     for d in range(1, days_in_month + 1):
         day = date(y, m, d)
-        tasks_by_day[date_key(day)] = len(
-            generate_tasks_from_calendar(events_list, day),
-        )
+        tasks_by_day[date_key(day)] = len(_active_merged_tasks(events_list, day))
 
     calendar_cells: List[Dict[str, Any]] = []
     for cell in cells:
@@ -249,21 +369,19 @@ def admin_calendar_list(request: HttpRequest) -> HttpResponse:
     selected_key = date_key(selected_date)
     today_key = date_key(today)
 
-    day_events: List[CalendarEvent] = []
+    day_events: List[MaintenanceTask] = []
     for ev in events_list:
-        if _local_event_start_date_key(ev) == selected_key:
+        if _local_task_start_date_key(ev) == selected_key:
             day_events.append(ev)
 
-    tasks_for_day = generate_tasks_from_calendar(events_list, selected_date)
+    tasks_for_day = [r['task'] for r in _active_merged_tasks(events_list, selected_date)]
 
     prev_m, prev_y = (m - 1, y) if m > 1 else (12, y - 1)
     next_m, next_y = (m + 1, y) if m < 12 else (1, y + 1)
 
     header_subtitle = (
-        f'{selected_date.strftime("%B %Y")} · Organization schedule'
+        f'{selected_date.strftime("%B %Y")} · Maintenance tasks on the calendar'
     )
-    import_open = request.GET.get('import') == '1'
-
     return render(
         request,
         'workforce/admin/calendar_list.html',
@@ -285,44 +403,142 @@ def admin_calendar_list(request: HttpRequest) -> HttpResponse:
             'prev_month': prev_m,
             'next_year': next_y,
             'next_month': next_m,
-            'import_open': import_open,
         },
     )
 
 
 @org_admin_required
 def admin_calendar_create(request: HttpRequest) -> HttpResponse:
-    form = CalendarEventForm(request.POST or None)
+    form = MaintenanceTaskForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         form.save()
-        messages.success(request, 'Event created.')
+        messages.success(request, 'Maintenance task saved.')
         return redirect('workforce:admin_calendar_list')
-    return render(request, 'workforce/admin/calendar_form.html', {'form': form, 'title': 'New event'})
+    return render(request, 'workforce/admin/calendar_form.html', {'form': form, 'title': 'New maintenance task'})
 
 
 @org_admin_required
 def admin_calendar_edit(request: HttpRequest, pk: int) -> HttpResponse:
-    ev = get_object_or_404(CalendarEvent, pk=pk)
-    form = CalendarEventForm(request.POST or None, instance=ev)
+    ev = get_object_or_404(MaintenanceTask, pk=pk)
+    form = MaintenanceTaskForm(request.POST or None, instance=ev)
     if request.method == 'POST' and form.is_valid():
         form.save()
-        messages.success(request, 'Event updated.')
+        messages.success(request, 'Maintenance task updated.')
         return redirect('workforce:admin_calendar_list')
     return render(
         request,
         'workforce/admin/calendar_form.html',
-        {'form': form, 'title': 'Edit event', 'event': ev},
+        {'form': form, 'title': 'Edit maintenance task', 'event': ev},
     )
 
 
 @org_admin_required
 def admin_calendar_delete(request: HttpRequest, pk: int) -> HttpResponse:
-    ev = get_object_or_404(CalendarEvent, pk=pk)
+    ev = get_object_or_404(MaintenanceTask, pk=pk)
     if request.method == 'POST':
         ev.delete()
-        messages.success(request, 'Event deleted.')
+        messages.success(request, 'Maintenance task removed.')
         return redirect('workforce:admin_calendar_list')
     return render(request, 'workforce/admin/calendar_confirm_delete.html', {'event': ev})
+
+
+@org_admin_required
+def admin_calendar_month_bulk(request: HttpRequest) -> HttpResponse:
+    """Create multiple maintenance tasks for a single calendar month in one submit."""
+    now = timezone.localtime()
+    today = now.date()
+
+    if request.method == 'POST':
+        try:
+            y = int(request.POST.get('bulk_year') or now.year)
+            m = int(request.POST.get('bulk_month') or now.month)
+        except (TypeError, ValueError):
+            y, m = now.year, now.month
+    else:
+        try:
+            y = int(request.GET.get('year') or now.year)
+            m = int(request.GET.get('month') or now.month)
+        except (TypeError, ValueError):
+            y, m = now.year, now.month
+
+    if m < 1:
+        m, y = 12, y - 1
+    if m > 12:
+        m, y = 1, y + 1
+
+    first_day = date(y, m, 1)
+    last_day = date(y, m, calendar.monthrange(y, m)[1])
+
+    FormSet = maintenance_task_bulk_formset_factory(first_day, last_day, extra=1)
+    prev_m, prev_y = (m - 1, y) if m > 1 else (12, y - 1)
+    next_m, next_y = (m + 1, y) if m < 12 else (1, y + 1)
+
+    if request.method == 'POST':
+        formset = FormSet(request.POST)
+        if formset.is_valid():
+            rows_to_save = [
+                f
+                for f in formset
+                if (f.cleaned_data.get('title') or '').strip()
+            ]
+            if not rows_to_save:
+                messages.error(request, 'Add at least one task with a title.')
+            else:
+                with transaction.atomic():
+                    for f in rows_to_save:
+                        cd = f.cleaned_data
+                        rtype = cd['recurrence_type']
+                        rec_end = (
+                            cd.get('recurrence_end')
+                            if rtype != MaintenanceTask.Recurrence.NONE
+                            else None
+                        )
+                        MaintenanceTask.objects.create(
+                            title=cd['title'].strip(),
+                            description=(cd.get('description') or '').strip(),
+                            location=(cd.get('location') or '').strip(),
+                            start=cd['start'],
+                            duration_minutes=cd['duration_minutes'],
+                            assigned_trade=cd['assigned_trade'],
+                            recurrence_type=rtype,
+                            recurrence_end=rec_end,
+                            checklist=cd['checklist_text'],
+                            color=cd['color'],
+                        )
+                messages.success(
+                    request,
+                    f'Created {len(rows_to_save)} maintenance task(s) for {first_day.strftime("%B %Y")}.',
+                )
+                qs = urlencode(
+                    {
+                        'year': y,
+                        'month': m,
+                        'selected': first_day.isoformat(),
+                    },
+                )
+                return redirect(f"{reverse('workforce:admin_calendar_list')}?{qs}")
+        # invalid formset or empty rows message: fall through
+    else:
+        formset = FormSet()
+
+    month_label = first_day.strftime('%B %Y')
+    return render(
+        request,
+        'workforce/admin/calendar_month_bulk.html',
+        {
+            'formset': formset,
+            'view_year': y,
+            'view_month': m,
+            'month_label': month_label,
+            'first_day': first_day,
+            'last_day': last_day,
+            'prev_year': prev_y,
+            'prev_month': prev_m,
+            'next_year': next_y,
+            'next_month': next_m,
+            'today': today,
+        },
+    )
 
 
 @org_admin_required
@@ -340,15 +556,17 @@ def admin_tasks(request: HttpRequest) -> HttpResponse:
         except ValueError:
             w_pk = None
 
-    events = CalendarEvent.objects.select_related('assigned_worker').all()
-    tasks = generate_tasks_from_calendar(events, day, worker_pk=w_pk)
-    ids = [t.id for t in tasks]
-    state_map = collect_state_map_for_ids(ids)
-    merged = merge_task_state(tasks, state_map)
-    workers = Worker.objects.all()
-    wmap = {w.pk: w.name for w in workers}
+    events = list(MaintenanceTask.objects.all())
+    w_trade: Optional[str] = None
+    v_pk: Optional[int] = None
+    if w_pk is not None:
+        filt_w = get_object_or_404(Worker, pk=w_pk)
+        w_trade = filt_w.trade
+        v_pk = w_pk
+    merged = _active_merged_tasks(events, day, worker_trade=w_trade, viewer_worker_pk=v_pk)
     for row in merged:
-        row['worker_name'] = wmap.get(row['task'].worker_pk, '')
+        row['worker_name'] = trade_label(row['task'].assigned_trade)
+    workers = Worker.objects.all()
     return render(
         request,
         'workforce/admin/tasks.html',
@@ -358,6 +576,35 @@ def admin_tasks(request: HttpRequest) -> HttpResponse:
             'merged_tasks': merged,
             'workers': workers,
             'filter_worker': w_pk,
+        },
+    )
+
+
+@org_admin_required
+def admin_task_detail(request: HttpRequest, event_id: int, date_key: str) -> HttpResponse:
+    ev = get_object_or_404(MaintenanceTask, pk=event_id)
+    try:
+        day = parse_date_key(date_key)
+    except (ValueError, IndexError):
+        raise Http404('Invalid date') from None
+    tasks = generate_tasks_from_calendar([ev], day, worker_trade=None, viewer_worker_pk=None)
+    if not tasks:
+        raise Http404('No task on this date for this event.')
+    derived_id = tasks[0].id
+    state_map = collect_state_map_for_ids([derived_id])
+    merged_rows = merge_task_state(tasks, state_map)
+    row = merged_rows[0]
+    return render(
+        request,
+        'workforce/admin/task_detail.html',
+        {
+            'event': ev,
+            'task': tasks[0],
+            'row': row,
+            'date_key': date_key,
+            'persist': row.get('persist'),
+            'worker_name': trade_label(ev.assigned_trade),
+            'edit_url': reverse('workforce:admin_calendar_edit', args=[ev.pk]),
         },
     )
 
@@ -401,8 +648,9 @@ def admin_task_report(request: HttpRequest) -> HttpResponse:
         qs = qs.filter(status=status_filter)
 
     if w_pk is not None:
+        fw = get_object_or_404(Worker, pk=w_pk)
         eids = list(
-            CalendarEvent.objects.filter(assigned_worker_id=w_pk).values_list('pk', flat=True),
+            MaintenanceTask.objects.filter(assigned_trade=fw.trade).values_list('pk', flat=True),
         )
         if not eids:
             qs = qs.none()
@@ -455,7 +703,13 @@ def admin_task_report(request: HttpRequest) -> HttpResponse:
 
 @org_admin_required
 def admin_workers(request: HttpRequest) -> HttpResponse:
-    workers = Worker.objects.annotate(event_count=Count('events')).order_by('name')
+    trade_counts = {
+        row['assigned_trade']: row['n']
+        for row in MaintenanceTask.objects.values('assigned_trade').annotate(n=Count('id'))
+    }
+    workers = list(Worker.objects.order_by('name'))
+    for w in workers:
+        w.event_count = trade_counts.get(w.trade, 0)
     return render(request, 'workforce/admin/workers.html', {'workers': workers})
 
 
@@ -481,35 +735,171 @@ def admin_worker_invite_create(request: HttpRequest) -> HttpResponse:
 
 
 @org_admin_required
-def admin_worker_detail(request: HttpRequest, pk: int) -> HttpResponse:
+def admin_worker_reset_code_generate(request: HttpRequest, pk: int) -> HttpResponse:
     worker = get_object_or_404(Worker, pk=pk)
-    return render(request, 'workforce/admin/worker_detail.html', {'worker': worker})
+    if request.method != 'POST':
+        return redirect('workforce:admin_worker_detail', pk=pk)
+    if not worker.user_id:
+        messages.error(request, 'This worker has no login account yet.')
+        return redirect('workforce:admin_worker_detail', pk=pk)
+    prof = Profile.objects.filter(user_id=worker.user_id).first()
+    if not prof or prof.role != Profile.Role.WORKER:
+        messages.error(
+            request,
+            'Password reset codes can only be issued for worker accounts.',
+        )
+        return redirect('workforce:admin_worker_detail', pk=pk)
+    now = timezone.now()
+    WorkerPasswordResetCode.objects.filter(
+        user_id=worker.user_id,
+        used_at__isnull=True,
+        expires_at__gt=now,
+    ).delete()
+    code = generate_unique_password_reset_code()
+    expires = now + timedelta(hours=48)
+    WorkerPasswordResetCode.objects.create(
+        user=worker.user,
+        code=code,
+        expires_at=expires,
+        created_by=request.user,
+    )
+    messages.success(
+        request,
+        f'Password reset code for {worker.user.username}: {code}. '
+        f'Expires {timezone.localtime(expires).strftime("%b %d, %Y %I:%M %p")}. '
+        'Share this code with the worker securely; it works once.',
+    )
+    return redirect('workforce:admin_worker_detail', pk=pk)
 
 
 @org_admin_required
-def admin_import(request: HttpRequest) -> HttpResponse:
-    if request.method == 'POST' and request.FILES.get('file'):
-        f = request.FILES['file']
-        data = f.read()
-        rows, errors = parse_uploaded_file(f.name, data)
-        if errors and not rows:
-            for e in errors:
-                messages.error(request, e)
-        elif errors:
-            for e in errors:
-                messages.warning(request, e)
-        if rows:
-            created = create_events_from_import(rows)
-            messages.success(request, f'Imported {len(created)} activities.')
-        cy = request.POST.get('cal_year')
-        cm = request.POST.get('cal_month')
-        cs = request.POST.get('cal_selected')
-        if cy and cm and cs:
-            return redirect(
-                f'{reverse("workforce:admin_calendar_list")}?year={cy}&month={cm}&selected={cs}',
-            )
-        return redirect('workforce:admin_import')
-    return render(request, 'workforce/admin/import.html')
+def admin_worker_detail(request: HttpRequest, pk: int) -> HttpResponse:
+    worker = get_object_or_404(Worker, pk=pk)
+    today = timezone.localdate()
+    months_choices = [(i, calendar.month_name[i]) for i in range(1, 13)]
+
+    completed_qs = _completed_task_states_for_worker(worker)
+    completed_count = completed_qs.count()
+    paginator = Paginator(completed_qs, 25)
+    page = request.GET.get('page') or 1
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+    completed_rows = _enrich_task_states_for_report(list(page_obj.object_list))
+
+    return render(
+        request,
+        'workforce/admin/worker_detail.html',
+        {
+            'worker': worker,
+            'export_default_year': today.year,
+            'export_default_month': today.month,
+            'export_month_choices': months_choices,
+            'completed_rows': completed_rows,
+            'completed_count': completed_count,
+            'page_obj': page_obj,
+            'paginator': paginator,
+        },
+    )
+
+
+@org_admin_required
+def admin_worker_completed_export(request: HttpRequest, pk: int) -> HttpResponse:
+    """Excel export of completed tasks for one worker in a calendar month (by completion date)."""
+    if Workbook is None:
+        return HttpResponseBadRequest('openpyxl is not installed.')
+    worker = get_object_or_404(Worker, pk=pk)
+    try:
+        year = int(request.GET.get('year') or timezone.localdate().year)
+        month = int(request.GET.get('month') or timezone.localdate().month)
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest('Invalid year or month.')
+    if month < 1 or month > 12 or year < 2000 or year > 2100:
+        return HttpResponseBadRequest('Year or month out of range.')
+
+    last_d = calendar.monthrange(year, month)[1]
+    start_d = date(year, month, 1)
+    end_d = date(year, month, last_d)
+
+    qs = (
+        _completed_task_states_for_worker(worker)
+        .filter(
+            last_saved_at__date__gte=start_d,
+            last_saved_at__date__lte=end_d,
+        )
+        .order_by('last_saved_at')
+    )
+    states = list(qs)
+    rows_data = _enrich_task_states_for_report(states)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Completed tasks'
+
+    headers = [
+        'Derived task ID',
+        'Task title',
+        'Trade',
+        'Occurrence date',
+        'Location',
+        'Completed at',
+        'Notes',
+        'Photos',
+        'Checklist done',
+        'Checklist total',
+    ]
+    bold = Font(bold=True) if Font else None
+    for col, title in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        if bold:
+            cell.font = bold
+
+    for r, item in enumerate(rows_data, start=2):
+        st: TaskState = item['state']
+        completed_at = (
+            timezone.localtime(st.last_saved_at).strftime('%Y-%m-%d %H:%M')
+            if st.last_saved_at
+            else ''
+        )
+        occ = item.get('task_date') or ''
+        if occ and len(occ) == 10:
+            try:
+                occ_fmt = datetime.strptime(occ, '%Y-%m-%d').date().isoformat()
+            except ValueError:
+                occ_fmt = occ
+        else:
+            occ_fmt = occ
+        ws.cell(row=r, column=1, value=st.derived_task_id)
+        ws.cell(row=r, column=2, value=item.get('title') or '')
+        ws.cell(row=r, column=3, value=item.get('worker_name') or '')
+        ws.cell(row=r, column=4, value=occ_fmt)
+        ws.cell(row=r, column=5, value=item.get('location') or '')
+        ws.cell(row=r, column=6, value=completed_at)
+        ws.cell(row=r, column=7, value=(st.notes or '').strip() or '—')
+        ws.cell(row=r, column=8, value=st.photo_count)
+        ws.cell(row=r, column=9, value=item.get('checklist_done_count', 0))
+        ws.cell(row=r, column=10, value=item.get('checklist_total', 0))
+
+    col_widths = [30, 36, 22, 14, 28, 18, 48, 10, 14, 14]
+    if get_column_letter:
+        for i, w in enumerate(col_widths, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    slug = re.sub(r'[^a-zA-Z0-9._-]+', '_', worker.name.strip())[:48] or f'worker_{worker.pk}'
+    fname = f'completed_tasks_{slug}_{year}-{month:02d}.xlsx'
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    return response
 
 
 @worker_required
@@ -521,11 +911,13 @@ def worker_my_tasks(request: HttpRequest) -> HttpResponse:
     except ValueError:
         day = timezone.localdate()
 
-    events = CalendarEvent.objects.select_related('assigned_worker').all()
-    tasks = generate_tasks_from_calendar(events, day, worker_pk=worker.pk)
-    ids = [t.id for t in tasks]
-    state_map = collect_state_map_for_ids(ids)
-    merged = merge_task_state(tasks, state_map)
+    events = list(MaintenanceTask.objects.all())
+    merged = _active_merged_tasks(
+        events,
+        day,
+        worker_trade=worker.trade,
+        viewer_worker_pk=worker.pk,
+    )
     return render(
         request,
         'workforce/worker/my_tasks.html',
@@ -549,7 +941,7 @@ def worker_schedule(request: HttpRequest) -> HttpResponse:
 
     cal = calendar.Calendar(firstweekday=0)
     weeks = cal.monthdatescalendar(y, m)
-    events = CalendarEvent.objects.select_related('assigned_worker').all()
+    events = list(MaintenanceTask.objects.all())
 
     grid: List[List[Dict[str, Any]]] = []
     for week in weeks:
@@ -558,12 +950,19 @@ def worker_schedule(request: HttpRequest) -> HttpResponse:
             if d.month != m:
                 row.append({'day': None, 'in_month': False, 'count': 0, 'date_str': ''})
                 continue
-            tasks = generate_tasks_from_calendar(events, d, worker_pk=worker.pk)
+            n_active = len(
+                _active_merged_tasks(
+                    events,
+                    d,
+                    worker_trade=worker.trade,
+                    viewer_worker_pk=worker.pk,
+                ),
+            )
             row.append(
                 {
                     'day': d.day,
                     'in_month': True,
-                    'count': len(tasks),
+                    'count': n_active,
                     'date_str': d.isoformat(),
                 },
             )
@@ -576,7 +975,14 @@ def worker_schedule(request: HttpRequest) -> HttpResponse:
     last_d = calendar.monthrange(y, m)[1]
     for d in range(1, last_d + 1):
         day = date(y, m, d)
-        month_task_count += len(generate_tasks_from_calendar(events, day, worker_pk=worker.pk))
+        month_task_count += len(
+            _active_merged_tasks(
+                events,
+                day,
+                worker_trade=worker.trade,
+                viewer_worker_pk=worker.pk,
+            ),
+        )
 
     subtitle = f'{calendar.month_name[m]} {y} · {month_task_count} tasks this month (you)'
     return render(
@@ -610,7 +1016,7 @@ def worker_history(request: HttpRequest) -> HttpResponse:
             eid = int(parts[0])
         except ValueError:
             continue
-        ev = CalendarEvent.objects.filter(pk=eid, assigned_worker=worker).first()
+        ev = MaintenanceTask.objects.filter(pk=eid, assigned_trade=worker.trade).first()
         if not ev:
             continue
         rows.append({'state': st, 'event': ev, 'date_key': parts[1]})
@@ -642,6 +1048,7 @@ def admin_profile(request: HttpRequest) -> HttpResponse:
             'user_form': user_form,
             'photo_form': photo_form,
             'profile': prof,
+            'profile_stats': _admin_profile_stats(),
         },
     )
 
@@ -677,6 +1084,7 @@ def worker_profile(request: HttpRequest) -> HttpResponse:
             'worker_form': worker_form,
             'worker': worker,
             'profile': prof,
+            'upcoming_events': _upcoming_events_for_worker(worker),
         },
     )
 
@@ -684,13 +1092,18 @@ def worker_profile(request: HttpRequest) -> HttpResponse:
 @worker_required
 def worker_task_detail(request: HttpRequest, event_id: int, date_key: str) -> HttpResponse:
     worker = get_object_or_404(Worker, user=request.user)
-    ev = get_object_or_404(CalendarEvent, pk=event_id, assigned_worker=worker)
+    ev = get_object_or_404(MaintenanceTask, pk=event_id, assigned_trade=worker.trade)
     try:
         day = parse_date_key(date_key)
     except (ValueError, IndexError):
         raise Http404('Invalid date') from None
 
-    tasks = generate_tasks_from_calendar([ev], day, worker_pk=worker.pk)
+    tasks = generate_tasks_from_calendar(
+        [ev],
+        day,
+        worker_trade=worker.trade,
+        viewer_worker_pk=worker.pk,
+    )
     if not tasks:
         raise Http404('No task on this date for this event.')
     task = tasks[0]

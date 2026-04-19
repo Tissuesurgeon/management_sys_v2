@@ -1,0 +1,14 @@
+<section class="rounded-2xl bg-slate-800 p-5 text-white shadow-sm" aria-labelledby="{{ dept_heading_id|default:'admin-dept-heading' }}">
+  <h2 id="{{ dept_heading_id|default:'admin-dept-heading' }}" class="text-base font-bold">FM OPS</h2>
+  <p class="mt-2 text-sm text-slate-300">FM OPS management system — organization overview and scheduling.</p>
+  <div class="mt-4 space-y-4">
+    <div>
+      <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Reporting</p>
+      <p class="mt-1 text-sm text-slate-100">Your organization’s operations team</p>
+    </div>
+    <div>
+      <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quick link</p>
+      <a href="{% url 'workforce:admin_dashboard' %}" class="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-sky-300 hover:text-white">Open dashboard <span aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</section>

@@ -1,16 +1,146 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}{{ worker.name }} — FRx OPS{% endblock %}
+{% block title %}{{ worker.name }} — FM OPS{% endblock %}
 {% block content %}
-<div class="max-w-2xl">
+<div class="mx-auto box-border w-full min-w-0 max-w-5xl overflow-x-clip">
   {% include "workforce/includes/page_header.html" with eyebrow="Roster" title=worker.name subtitle=worker.title %}
-  <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-    <dl class="space-y-3 text-sm">
-      <div class="flex justify-between border-b border-slate-100 py-2"><dt class="text-slate-500">Department</dt><dd class="font-medium text-slate-900">{{ worker.department }}</dd></div>
-      <div class="flex justify-between border-b border-slate-100 py-2"><dt class="text-slate-500">Employee ID</dt><dd class="font-medium text-slate-900">{{ worker.employee_id }}</dd></div>
-      <div class="flex justify-between border-b border-slate-100 py-2"><dt class="text-slate-500">Facility</dt><dd class="font-medium text-slate-900">{{ worker.facility_location }}</dd></div>
-      <div class="flex justify-between py-2"><dt class="text-slate-500">Tasks completed</dt><dd class="font-medium text-slate-900">{{ worker.tasks_completed }}</dd></div>
+  <div class="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6">
+    <dl class="space-y-0 text-sm">
+      {% if worker.user %}
+        <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
+          <dt class="text-slate-500">Login username</dt>
+          <dd class="min-w-0 break-all font-mono font-medium text-slate-900 sm:text-right">{{ worker.user.username }}</dd>
+        </div>
+      {% endif %}
+      <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
+        <dt class="text-slate-500">Trade</dt>
+        <dd class="min-w-0 break-words font-medium text-slate-900 sm:text-right">{{ worker.get_trade_display }}</dd>
+      </div>
+      <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
+        <dt class="text-slate-500">Department</dt>
+        <dd class="min-w-0 break-words font-medium text-slate-900 sm:text-right">{{ worker.department }}</dd>
+      </div>
+      <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
+        <dt class="text-slate-500">Employee ID</dt>
+        <dd class="min-w-0 break-words font-medium text-slate-900 sm:text-right">{{ worker.employee_id }}</dd>
+      </div>
+      <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
+        <dt class="text-slate-500">Facility</dt>
+        <dd class="min-w-0 break-words font-medium text-slate-900 sm:text-right">{{ worker.facility_location }}</dd>
+      </div>
+      <div class="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
+        <dt class="text-slate-500">Tasks completed (roster)</dt>
+        <dd class="min-w-0 font-medium text-slate-900 sm:text-right">{{ worker.tasks_completed }}</dd>
+      </div>
     </dl>
-    <a href="{% url 'workforce:admin_workers' %}" class="mt-4 inline-block text-sm font-semibold text-slate-800 underline">Back to roster</a>
+    {% if worker.user %}
+      <form action="{% url 'workforce:admin_worker_reset_code_generate' worker.pk %}" method="post" class="mt-6 border-t border-slate-100 pt-6">
+        {% csrf_token %}
+        <p class="mb-3 break-words text-sm text-slate-600">Generate a one-time code (valid 48 hours) so this technician can reset their password on the sign-in page if they forgot it.</p>
+        <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">
+          Generate password reset code
+        </button>
+      </form>
+    {% else %}
+      <p class="mt-6 break-words border-t border-slate-100 pt-6 text-sm text-slate-500">This roster entry has no login yet. After the technician completes registration, you can generate a reset code here.</p>
+    {% endif %}
+
+    <div class="mt-6 border-t border-slate-100 pt-6">
+      <h3 class="text-sm font-bold text-slate-800">Export completed tasks</h3>
+      <p class="mt-1 break-words text-sm leading-relaxed text-slate-600">Download an Excel (.xlsx) file of tasks assigned to this worker that were marked completed in the selected calendar month (by completion date).</p>
+      <form method="get" action="{% url 'workforce:admin_worker_completed_export' worker.pk %}" class="mt-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div class="w-full sm:w-auto">
+          <label for="export-year" class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600">Year</label>
+          <input id="export-year" type="number" name="year" value="{{ export_default_year }}" min="2000" max="2100" required class="w-full max-w-[12rem] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 sm:w-28" />
+        </div>
+        <div class="w-full min-w-0 sm:w-auto sm:min-w-[11rem]">
+          <label for="export-month" class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600">Month</label>
+          <select id="export-month" name="month" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500">
+            {% for num, label in export_month_choices %}
+            <option value="{{ num }}"{% if num == export_default_month %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="w-full rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 sm:w-auto">Download Excel</button>
+      </form>
+    </div>
+
+    <a href="{% url 'workforce:admin_workers' %}" class="mt-6 inline-block text-sm font-semibold text-slate-800 underline">Back to roster</a>
   </div>
+
+  <section class="mt-8 min-w-0 max-w-full" aria-labelledby="worker-completed-heading">
+    <h2 id="worker-completed-heading" class="text-lg font-bold text-slate-900">Completed tasks</h2>
+    <p class="mt-1 break-words text-sm leading-relaxed text-slate-600">
+      All tasks assigned to this worker that have been marked completed (newest first). Total: <span class="font-semibold text-slate-800">{{ completed_count }}</span>.
+    </p>
+    <p class="mt-2 break-words text-sm text-slate-600">
+      <a href="{% url 'workforce:admin_task_report' %}?worker={{ worker.pk }}&amp;status=completed" class="inline-block break-words font-semibold text-slate-800 underline hover:text-slate-950">Open in task report</a>
+      <span class="text-slate-400"> (adjust date range there)</span>
+    </p>
+
+    <div class="mt-4 w-full max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-100 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
+      <table class="w-full min-w-[640px] divide-y divide-slate-200 text-left text-sm sm:min-w-full">
+        <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-600">
+          <tr>
+            <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Completed</th>
+            <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Task date</th>
+            <th scope="col" class="min-w-[8rem] px-3 py-3 sm:min-w-[10rem] sm:px-4">Activity</th>
+            <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Checklist</th>
+            <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Photos</th>
+            <th scope="col" class="min-w-[10rem] px-3 py-3 sm:min-w-[12rem] sm:px-4">Notes</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in completed_rows %}
+            {% with st=row.state %}
+            <tr class="align-top hover:bg-slate-50/80">
+              <td class="whitespace-nowrap px-3 py-3 text-slate-700 sm:px-4">{{ st.last_saved_at|date:"M j, Y" }}<br><span class="text-xs text-slate-500">{{ st.last_saved_at|time:"g:i A" }}</span></td>
+              <td class="whitespace-nowrap px-3 py-3 text-slate-700 sm:px-4">{{ row.task_date|default:"—" }}</td>
+              <td class="max-w-[200px] px-3 py-3 sm:max-w-none sm:px-4">
+                <p class="break-words font-semibold text-slate-900">{{ row.title }}</p>
+                {% if row.location %}<p class="mt-0.5 break-words text-xs text-slate-500">{{ row.location }}</p>{% endif %}
+              </td>
+              <td class="whitespace-nowrap px-3 py-3 tabular-nums text-slate-700 sm:px-4">
+                {% if row.checklist_total %}
+                  {{ row.checklist_done_count }} / {{ row.checklist_total }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td class="whitespace-nowrap px-3 py-3 tabular-nums text-slate-700 sm:px-4">{{ st.photo_count }}</td>
+              <td class="min-w-[10rem] px-3 py-3 text-slate-700 sm:min-w-0 sm:px-4">
+                {% if st.notes %}
+                  <p class="max-w-full whitespace-pre-wrap break-words text-sm leading-snug sm:max-w-md">{{ st.notes }}</p>
+                {% else %}
+                  <span class="text-slate-400">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="6" class="px-3 py-12 text-center text-slate-500 sm:px-4">No completed tasks recorded for this worker yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if paginator.num_pages > 1 %}
+    <nav class="mt-6 flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between" aria-label="Completed tasks pagination">
+      <p class="text-slate-600">
+        Page {{ page_obj.number }} of {{ paginator.num_pages }}
+        <span class="text-slate-400">({{ paginator.count }} total)</span>
+      </p>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+          <a class="rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-800 hover:bg-slate-50" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a class="rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-800 hover:bg-slate-50" href="?page={{ page_obj.next_page_number }}">Next</a>
+        {% endif %}
+      </div>
+    </nav>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

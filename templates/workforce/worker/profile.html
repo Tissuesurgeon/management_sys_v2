@@ -1,12 +1,37 @@
 {% extends "workforce/base_worker.html" %}
-{% block title %}Profile — FRx OPS{% endblock %}
+{% block title %}Profile — FM OPS{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-lg">
-  {% include "workforce/includes/page_header.html" with eyebrow="Account" title="Profile" subtitle="Your account, photo, and roster information." %}
-  <form method="post" enctype="multipart/form-data" class="space-y-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+<div class="mx-auto max-w-5xl px-4 pb-12 pt-2 sm:px-6">
+
+  <section class="mb-6 lg:hidden" aria-label="Profile">
+    {% include "workforce/includes/profile_worker_hero_mobile.html" %}
+  </section>
+
+  <div class="space-y-5 rounded-3xl bg-slate-100/90 p-4 shadow-inner lg:hidden">
+    {% include "workforce/includes/profile_worker_performance.html" with perf_heading_id="worker-perf-m" %}
+    {% include "workforce/includes/profile_worker_assignments.html" with assign_heading_id="worker-assign-m" %}
+    {% include "workforce/includes/profile_worker_department.html" with dept_heading_id="worker-dept-m" %}
+  </div>
+
+  <div class="mb-4 hidden gap-4 lg:grid lg:grid-cols-3 lg:items-stretch">
+    {% include "workforce/includes/profile_worker_identity_card.html" %}
+    <div class="flex h-full min-h-0 flex-col rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      {% include "workforce/includes/profile_worker_performance.html" with perf_heading_id="worker-perf-d" %}
+    </div>
+    <div class="flex h-full min-h-0 flex-col rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      {% include "workforce/includes/profile_worker_assignments.html" with assign_heading_id="worker-assign-d" %}
+    </div>
+  </div>
+
+  <div class="mb-6 hidden lg:block">
+    {% include "workforce/includes/profile_worker_department.html" with dept_heading_id="worker-dept-d" %}
+  </div>
+
+  <form id="edit-profile" method="post" enctype="multipart/form-data" class="mt-8 space-y-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm lg:mt-6{% if not user_form.errors and not photo_form.errors and not worker_form.errors %} hidden{% endif %}">
     {% csrf_token %}
+    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Account settings</h2>
     <div>
-      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Account</h2>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Account</h3>
       <div class="space-y-4">
         {% for field in user_form %}
           <div>
@@ -18,7 +43,7 @@
       </div>
     </div>
     <div>
-      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Photo</h2>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Photo</h3>
       {% if profile.photo %}
         <div class="mb-3 flex items-center gap-3">
           <img src="{{ profile.photo.url }}" alt="" class="h-16 w-16 rounded-full object-cover ring-2 ring-slate-100" width="64" height="64">
@@ -34,7 +59,7 @@
       {% endfor %}
     </div>
     <div>
-      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Roster</h2>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">Roster</h3>
       <div class="space-y-4">
         {% for field in worker_form %}
           <div>
@@ -48,4 +73,23 @@
     <button type="submit" class="w-full rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700">Save</button>
   </form>
 </div>
+<script>
+(function () {
+  var form = document.getElementById('edit-profile');
+  if (!form) return;
+  function reveal() {
+    form.classList.remove('hidden');
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  document.querySelectorAll('[data-edit-profile]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      reveal();
+    });
+  });
+  if (window.location.hash === '#edit-profile') {
+    reveal();
+  }
+})();
+</script>
 {% endblock %}

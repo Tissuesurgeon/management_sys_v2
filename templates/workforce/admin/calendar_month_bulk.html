@@ -1,0 +1,195 @@
+{% extends "workforce/base_admin.html" %}
+{% block title %}Bulk add tasks — {{ month_label }} — FM OPS{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Scheduling</p>
+      <h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Bulk add maintenance tasks</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Tasks are created for <span class="font-semibold text-slate-800">{{ month_label }}</span>
+        ({{ first_day|date:"M j" }} – {{ last_day|date:"M j, Y" }}).
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <a href="{% url 'workforce:admin_calendar_month_bulk' %}?year={{ prev_year }}&month={{ prev_month }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">← Previous month</a>
+      <a href="{% url 'workforce:admin_calendar_month_bulk' %}?year={{ next_year }}&month={{ next_month }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Next month →</a>
+      <a href="{% url 'workforce:admin_calendar_list' %}?year={{ view_year }}&month={{ view_month }}&selected={{ first_day|date:'Y-m-d' }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">Back to calendar</a>
+    </div>
+  </div>
+
+  <form method="post" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6">
+    {% csrf_token %}
+    <input type="hidden" name="bulk_year" value="{{ view_year }}" id="id_bulk_year">
+    <input type="hidden" name="bulk_month" value="{{ view_month }}" id="id_bulk_month">
+
+    {{ formset.management_form }}
+    {% if formset.non_form_errors %}
+      <div class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        {{ formset.non_form_errors }}
+      </div>
+    {% endif %}
+
+    <div id="bulk-rows" class="space-y-4">
+      {% for form in formset %}
+        <div class="bulk-task-row rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+          <p class="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+            Task <span class="bulk-task-num">{{ forloop.counter }}</span>
+          </p>
+          <div class="space-y-4">
+            <div>
+              <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.title.id_for_label }}">Title</label>
+              {{ form.title.errors }}
+              {{ form.title }}
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.description.id_for_label }}">Description</label>
+              {{ form.description.errors }}
+              {{ form.description }}
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.checklist_text.id_for_label }}">Checklist (one line per item)</label>
+              {{ form.checklist_text.errors }}
+              {{ form.checklist_text }}
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.location.id_for_label }}">Location</label>
+              {{ form.location.errors }}
+              {{ form.location }}
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.start.id_for_label }}">Start</label>
+                {{ form.start.errors }}
+                {{ form.start }}
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.duration_minutes.id_for_label }}">Duration (minutes)</label>
+                {{ form.duration_minutes.errors }}
+                {{ form.duration_minutes }}
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.assigned_trade.id_for_label }}">{{ form.assigned_trade.label }}</label>
+              {{ form.assigned_trade.errors }}
+              {{ form.assigned_trade }}
+              {% if form.assigned_trade.help_text %}<p class="mt-1 text-xs text-slate-500">{{ form.assigned_trade.help_text }}</p>{% endif %}
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.recurrence_type.id_for_label }}">Recurrence</label>
+                {{ form.recurrence_type.errors }}
+                {{ form.recurrence_type }}
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.recurrence_end.id_for_label }}">Recurrence end</label>
+                {{ form.recurrence_end.errors }}
+                {{ form.recurrence_end }}
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.color.id_for_label }}">Color</label>
+              {{ form.color.errors }}
+              {{ form.color }}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="pt-1">
+      <button type="button" id="bulk-add-row" class="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        Add another task
+      </button>
+    </div>
+
+    <div class="flex flex-wrap gap-3 pt-2">
+      <button type="submit" class="rounded-xl bg-slate-800 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-700">Create tasks</button>
+      <a href="{% url 'workforce:admin_calendar_list' %}?year={{ view_year }}&month={{ view_month }}&selected={{ first_day|date:'Y-m-d' }}" class="rounded-xl border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var container = document.getElementById('bulk-rows');
+  var addBtn = document.getElementById('bulk-add-row');
+  var totalInput = document.getElementById('id_form-TOTAL_FORMS');
+  if (!container || !addBtn || !totalInput) return;
+
+  function reindexBulkRow(rowEl, oldIdx, newIdx) {
+    if (oldIdx === newIdx) return;
+    var oldSeg = 'form-' + oldIdx + '-';
+    var newSeg = 'form-' + newIdx + '-';
+    rowEl.querySelectorAll('*').forEach(function (el) {
+      if (!el.attributes) return;
+      for (var i = 0; i < el.attributes.length; i++) {
+        var a = el.attributes[i];
+        if (a.value && a.value.indexOf(oldSeg) !== -1) {
+          el.setAttribute(a.name, a.value.split(oldSeg).join(newSeg));
+        }
+      }
+    });
+  }
+
+  function clearRowInputs(rowEl) {
+    rowEl.querySelectorAll('input, textarea, select').forEach(function (el) {
+      if (el.type === 'hidden') return;
+      if (!el.name || el.name.indexOf('form-') === -1) return;
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        el.checked = false;
+      } else if (el.tagName === 'SELECT') {
+        el.selectedIndex = 0;
+      } else {
+        el.value = '';
+      }
+    });
+    var dm = rowEl.querySelector('input[name$="-duration_minutes"]');
+    if (dm) dm.value = '60';
+  }
+
+  function refreshTaskNumbers() {
+    var nums = container.querySelectorAll('.bulk-task-num');
+    nums.forEach(function (span, i) {
+      span.textContent = String(i + 1);
+    });
+  }
+
+  var maxRows = 50;
+
+  function syncAddButton() {
+    var n = parseInt(totalInput.value, 10);
+    if (n >= maxRows) {
+      addBtn.disabled = true;
+      addBtn.classList.add('cursor-not-allowed', 'opacity-50');
+      addBtn.setAttribute('aria-disabled', 'true');
+    } else {
+      addBtn.disabled = false;
+      addBtn.classList.remove('cursor-not-allowed', 'opacity-50');
+      addBtn.removeAttribute('aria-disabled');
+    }
+  }
+
+  addBtn.addEventListener('click', function () {
+    var rows = container.querySelectorAll('.bulk-task-row');
+    if (!rows.length) return;
+    var total = parseInt(totalInput.value, 10);
+    if (total >= maxRows) return;
+    var lastRow = rows[rows.length - 1];
+    var oldIdx = total - 1;
+    var newIdx = total;
+    var clone = lastRow.cloneNode(true);
+    clone.querySelectorAll('.errorlist').forEach(function (ul) { ul.remove(); });
+    reindexBulkRow(clone, oldIdx, newIdx);
+    clearRowInputs(clone);
+    container.appendChild(clone);
+    totalInput.value = String(total + 1);
+    refreshTaskNumbers();
+    syncAddButton();
+  });
+
+  syncAddButton();
+})();
+</script>
+{% endblock %}

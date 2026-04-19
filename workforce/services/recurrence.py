@@ -1,7 +1,21 @@
 from datetime import date, datetime
 from typing import Any, Dict, Optional, Union
 
+from django.utils import timezone as django_tz
+
 from .date_utils import start_of_day
+
+
+def _local_date(d: Union[datetime, date]) -> date:
+    """Calendar date in the active timezone (matches how calendar UI picks days)."""
+    if isinstance(d, date) and not isinstance(d, datetime):
+        return d
+    if isinstance(d, datetime):
+        dt = d
+        if django_tz.is_naive(dt):
+            dt = django_tz.make_aware(dt, django_tz.get_current_timezone())
+        return django_tz.localtime(dt).date()
+    raise TypeError(d)
 
 
 def _parse_end(recurrence: Dict[str, Any]) -> Optional[datetime]:
@@ -19,40 +33,47 @@ def occurs_on_event_day(
     event_start: Union[datetime, date],
     day: Union[datetime, date],
 ) -> bool:
-    """Mirror of Management_sys recurrence.js occursOnEventDay."""
-    target = start_of_day(day)
-    start = start_of_day(event_start)
+    """Mirror of Management_sys recurrence.js occursOnEventDay.
 
-    if target < start:
+    Compare **local calendar dates** for the active ``TIME_ZONE`` so one-off events
+    and recurrence lines match the calendar grid and task list (avoids midnight-UTC
+    vs midnight-local mismatches when ``USE_TZ`` is true).
+    """
+    target_date = _local_date(day)
+    anchor_date = _local_date(event_start)
+
+    if target_date < anchor_date:
         return False
 
     rec = recurrence or {}
     end = _parse_end(rec)
-    if end and target > end:
-        return False
+    if end:
+        end_date = _local_date(end)
+        if target_date > end_date:
+            return False
 
     rtype = rec.get('type') or 'none'
 
     if rtype == 'none':
-        return target == start
+        return target_date == anchor_date
 
     if rtype == 'daily':
         return True
 
     if rtype == 'weekly':
         # Match JS Date.getDay(): Sunday=0 .. Saturday=6
-        def js_get_day(d: datetime) -> int:
+        def js_get_day(d: date) -> int:
             return (d.weekday() + 1) % 7
 
-        return js_get_day(target) == js_get_day(start)
+        return js_get_day(target_date) == js_get_day(anchor_date)
 
     if rtype == 'monthly':
-        dom = start.day
-        if target.day != dom:
+        dom = anchor_date.day
+        if target_date.day != dom:
             return False
         import calendar
 
-        last = calendar.monthrange(target.year, target.month)[1]
+        last = calendar.monthrange(target_date.year, target_date.month)[1]
         if dom > last:
             return False
         return True
@@ -60,9 +81,9 @@ def occurs_on_event_day(
     return False
 
 
-def recurrence_dict_from_event(event) -> Dict[str, Any]:
-    """Build recurrence dict from CalendarEvent model."""
-    r: Dict[str, Any] = {'type': event.recurrence_type or 'none'}
-    if event.recurrence_end:
-        r['endDate'] = event.recurrence_end.isoformat()
+def recurrence_dict_from_task(task) -> Dict[str, Any]:
+    """Build recurrence dict from MaintenanceTask."""
+    r: Dict[str, Any] = {'type': task.recurrence_type or 'none'}
+    if task.recurrence_end:
+        r['endDate'] = task.recurrence_end.isoformat()
     return r

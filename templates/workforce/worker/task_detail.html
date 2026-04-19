@@ -1,5 +1,5 @@
 {% extends "workforce/base_worker.html" %}
-{% block title %}{{ task.title }} — FRx OPS{% endblock %}
+{% block title %}{{ task.title }} — FM OPS{% endblock %}
 {% block content %}
 <form method="post" class="pb-8">
   {% csrf_token %}
@@ -10,6 +10,12 @@
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ task.title }}</h1>
         <p class="mt-1 text-sm text-slate-500">{{ task.location }}</p>
         <p class="mt-2 text-sm text-slate-600">Due {{ task.due_time }}</p>
+        {% if task.description %}
+        <div class="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Description</p>
+          <div class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{{ task.description }}</div>
+        </div>
+        {% endif %}
       </div>
       <div>
         {% if persist %}
@@ -26,6 +32,12 @@
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Tasks › Inspection</p>
         <h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl md:text-3xl">{{ task.title }}</h1>
         <p class="mt-1 break-words text-sm text-slate-500">{{ task.location }} · Due {{ task.due_time }}</p>
+        {% if task.description %}
+        <div class="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Description</p>
+          <div class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{{ task.description }}</div>
+        </div>
+        {% endif %}
       </div>
       <div>
         {% if persist %}

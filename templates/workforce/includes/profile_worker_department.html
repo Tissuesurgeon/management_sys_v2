@@ -1,0 +1,22 @@
+<section class="rounded-2xl bg-slate-800 p-5 text-white shadow-sm" aria-labelledby="{{ dept_heading_id|default:'worker-dept-heading' }}">
+  <h2 id="{{ dept_heading_id|default:'worker-dept-heading' }}" class="text-base font-bold">Department unit</h2>
+  <div class="mt-4 space-y-4">
+    <div>
+      <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Reporting to</p>
+      <div class="mt-2 flex items-center gap-2">
+        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-600 text-xs font-bold text-slate-200" aria-hidden="true">—</span>
+        <p class="text-sm text-slate-100">Contact your facility manager</p>
+      </div>
+    </div>
+    <div>
+      <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Facility location</p>
+      <p class="mt-1 text-sm font-medium text-white">{{ worker.facility_location|default:"—" }}</p>
+    </div>
+    {% if worker.department %}
+    <div>
+      <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Department</p>
+      <p class="mt-1 text-sm text-slate-100">{{ worker.department }}</p>
+    </div>
+    {% endif %}
+  </div>
+</section>

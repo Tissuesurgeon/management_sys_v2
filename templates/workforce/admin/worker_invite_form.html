@@ -1,8 +1,8 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}Add worker registration — FRx OPS{% endblock %}
+{% block title %}Add technician registration — FM OPS{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-lg">
-  {% include "workforce/includes/page_header.html" with eyebrow="Roster" title="Add worker registration" subtitle="A unique code is generated when you save. Optional email and employee ID must match what the worker enters at signup." %}
+  {% include "workforce/includes/page_header.html" with eyebrow="Roster" title="Add technician registration" subtitle="A unique code is generated when you save. Optional email and employee ID must match what the technician enters at signup. You can optionally lock the trade (plumber, electrician, general technician)." %}
 
   <form method="post" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
     {% csrf_token %}

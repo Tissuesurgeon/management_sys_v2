@@ -4,33 +4,42 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from django.utils import timezone
 
-from workforce.models import CalendarEvent, TaskState
+from workforce.models import MaintenanceTask, TaskState, Worker
 from workforce.services.date_utils import date_key, format_time, start_of_day, to_aware
-from workforce.services.recurrence import occurs_on_event_day, recurrence_dict_from_event
+from workforce.services.recurrence import occurs_on_event_day, recurrence_dict_from_task
 
 
 @dataclass
 class DerivedTask:
     id: str
     title: str
+    description: str
     location: str
     due_time: str
     due_date: datetime
-    worker_pk: int
+    worker_pk: Optional[int]
     status: str
     checklist: List[str]
-    source_event_id: int
+    source_task_id: int
     date_key_str: str
     color: str
+    assigned_trade: str
 
 
 def generate_tasks_from_calendar(
     events,
     day: Union[datetime, date],
     *,
-    worker_pk: Optional[int] = None,
+    worker_trade: Optional[str] = None,
+    viewer_worker_pk: Optional[int] = None,
 ) -> List[DerivedTask]:
-    """Port of generateTasksFromCalendar.js"""
+    """Expand calendar maintenance tasks for ``day``.
+
+    If ``worker_trade`` is set (field technician), only include tasks assigned to that trade.
+    If unset (e.g. facility manager views all), include every task.
+
+    ``viewer_worker_pk`` is stored on each derived task for compatibility (logged-in worker).
+    """
     day_start = start_of_day(day)
     if timezone.is_naive(day_start):
         day_start = to_aware(day_start)
@@ -38,9 +47,9 @@ def generate_tasks_from_calendar(
     out: List[DerivedTask] = []
 
     for ev in events:
-        if worker_pk is not None and ev.assigned_worker_id != worker_pk:
+        if worker_trade is not None and ev.assigned_trade != worker_trade:
             continue
-        rec = recurrence_dict_from_event(ev)
+        rec = recurrence_dict_from_task(ev)
         if not occurs_on_event_day(rec, ev.start, day_start):
             continue
         start_dt = ev.start
@@ -52,20 +61,21 @@ def generate_tasks_from_calendar(
             second=0,
             microsecond=0,
         )
-        wid = ev.assigned_worker_id
         out.append(
             DerivedTask(
                 id=f'{ev.pk}::{key}',
                 title=ev.title,
                 location=ev.location or '',
+                description=getattr(ev, 'description', '') or '',
                 due_time=format_time(due),
                 due_date=due,
-                worker_pk=wid,
+                worker_pk=viewer_worker_pk,
                 status='scheduled',
                 checklist=list(ev.checklist or []),
-                source_event_id=ev.pk,
+                source_task_id=ev.pk,
                 date_key_str=key,
                 color=ev.color or 'blue',
+                assigned_trade=ev.assigned_trade,
             )
         )
 
@@ -101,7 +111,7 @@ def collect_state_map_for_ids(derived_ids: List[str]) -> Dict[str, TaskState]:
 
 
 def parse_derived_task_id(derived_id: str) -> Tuple[Optional[int], Optional[str]]:
-    """``derived_task_id`` is ``{calendar_event_pk}::{YYYY-MM-DD}``."""
+    """``derived_task_id`` is ``{maintenance_task_pk}::{YYYY-MM-DD}``."""
     parts = derived_id.split('::', 1)
     if len(parts) != 2:
         return None, None
@@ -109,3 +119,11 @@ def parse_derived_task_id(derived_id: str) -> Tuple[Optional[int], Optional[str]
         return int(parts[0]), parts[1]
     except ValueError:
         return None, None
+
+
+def trade_label(value: str) -> str:
+    """Human label for a Worker.Trade value."""
+    try:
+        return Worker.Trade(value).label
+    except ValueError:
+        return value

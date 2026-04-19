@@ -1,8 +1,8 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}Delete event — FRx OPS{% endblock %}
+{% block title %}Delete maintenance task — FM OPS{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-lg rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm">
-  <h1 class="text-xl font-bold text-slate-900">Delete event</h1>
+  <h1 class="text-xl font-bold text-slate-900">Delete maintenance task</h1>
   <p class="mt-2 text-slate-600">Remove <strong>{{ event.title }}</strong>? This cannot be undone.</p>
   <form method="post" class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
     {% csrf_token %}

@@ -1,21 +1,20 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}Work calendar — FRx OPS{% endblock %}
+{% block title %}Maintenance calendar — FM OPS{% endblock %}
 {% block content %}
 {# Parity with Management_sys src/pages/admin/Calendar.jsx + CalendarMonth.jsx #}
 <div>
   {# ResponsivePageHeader — mobile #}
   <div class="mb-5 md:hidden">
     <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Scheduling</p>
-    <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Work calendar</h1>
+    <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Maintenance calendar</h1>
     <p class="mt-1 text-sm leading-relaxed text-slate-500">{{ header_subtitle }}</p>
     <div class="mt-4 flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-      <a href="{% url 'workforce:admin_calendar_list' %}?year={{ view_year }}&month={{ view_month }}&selected={{ selected_date|date:'Y-m-d' }}&import=1" class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white touch-manipulation hover:bg-slate-700 active:bg-slate-900 sm:w-auto">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
-        Import calendar
-      </a>
-      <a href="{% url 'workforce:admin_calendar_create' %}" class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm touch-manipulation hover:bg-slate-50 active:bg-slate-100 sm:w-auto">
+      <a href="{% url 'workforce:admin_calendar_create' %}" class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm touch-manipulation hover:bg-slate-700 active:bg-slate-900 sm:w-auto">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-        New event
+        Add maintenance task
+      </a>
+      <a href="{% url 'workforce:admin_calendar_month_bulk' %}?year={{ view_year }}&month={{ view_month }}" class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm touch-manipulation hover:bg-slate-50 active:bg-slate-100 sm:w-auto">
+        Bulk add tasks for {{ month_title }}
       </a>
     </div>
   </div>
@@ -25,17 +24,16 @@
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
       <div class="min-w-0">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Scheduling</p>
-        <h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl md:text-3xl">Work calendar</h1>
+        <h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl md:text-3xl">Maintenance calendar</h1>
         <p class="mt-1 break-words text-sm text-slate-500">{{ header_subtitle }}</p>
       </div>
       <div class="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-        <a href="{% url 'workforce:admin_calendar_list' %}?year={{ view_year }}&month={{ view_month }}&selected={{ selected_date|date:'Y-m-d' }}&import=1" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
-          Import calendar
-        </a>
-        <a href="{% url 'workforce:admin_calendar_create' %}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
+        <a href="{% url 'workforce:admin_calendar_create' %}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-700">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-          New event
+          Add maintenance task
+        </a>
+        <a href="{% url 'workforce:admin_calendar_month_bulk' %}?year={{ view_year }}&month={{ view_month }}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
+          Bulk add tasks for {{ month_title }}
         </a>
       </div>
     </div>
@@ -58,7 +56,7 @@
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-lg font-semibold text-slate-900">{{ month_title }}</h2>
-            <p class="text-sm text-slate-500">{{ event_count }} event{% if event_count != 1 %}s{% endif %} configured</p>
+            <p class="text-sm text-slate-500">{{ event_count }} maintenance task{% if event_count != 1 %}s{% endif %} scheduled</p>
           </div>
           <div class="flex gap-1">
             <a href="{% url 'workforce:admin_calendar_list' %}?year={{ prev_year }}&month={{ prev_month }}&selected={{ selected_date|date:'Y-m-d' }}" class="inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 active:bg-slate-100" aria-label="Previous month">
@@ -105,7 +103,7 @@
       <div class="rounded-2xl border border-slate-100 bg-slate-800 p-5 text-white shadow-sm">
         <p class="text-xs font-semibold uppercase text-slate-400">Schedule health</p>
         <p class="mt-2 text-3xl font-bold">—</p>
-        <p class="text-sm text-slate-300">Define as your team adopts the calendar</p>
+        <p class="text-sm text-slate-300">Define as your team adopts the schedule</p>
         <div class="mt-4">
           <div class="mb-1 flex justify-between text-xs text-slate-400">
             <span>Planned coverage</span>
@@ -118,11 +116,11 @@
       </div>
 
       <div>
-        <h2 class="mb-2 text-sm font-semibold text-slate-900">Events on {{ selected_date|date:"F j, Y" }}</h2>
+        <h2 class="mb-2 text-sm font-semibold text-slate-900">Tasks starting {{ selected_date|date:"F j, Y" }}</h2>
         <ul class="space-y-2">
           {% if day_events|length == 0 %}
             <li class="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
-              No single-day events starting this date. Recurring tasks may still apply — see list below.
+              No tasks with this start date. Recurring maintenance tasks may still apply — see below.
             </li>
           {% else %}
             {% for ev in day_events %}
@@ -146,7 +144,10 @@
       </div>
 
       <div>
-        <h2 class="mb-2 text-sm font-semibold text-slate-900">Tasks this day (generated)</h2>
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-sm font-semibold text-slate-900">Tasks this day (generated)</h2>
+          <a href="{% url 'workforce:admin_tasks' %}?date={{ selected_date|date:'Y-m-d' }}" class="text-xs font-semibold text-sky-600 hover:text-sky-700">Open tasks page for this day</a>
+        </div>
         <ul class="space-y-2">
           {% for t in tasks_for_day %}
             <li class="rounded-lg border border-slate-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm">
@@ -161,41 +162,4 @@
     </div>
   </div>
 </div>
-
-{# Import modal — parity with UploadMaintenanceCalendarModal when ?import=1 #}
-{% if import_open %}
-<div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-0 sm:p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="upload-cal-title">
-  <div class="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:max-h-[90vh] sm:rounded-2xl">
-    <div class="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-6">
-      <h2 id="upload-cal-title" class="text-lg font-semibold text-slate-900">Import work calendar</h2>
-      <a href="{% url 'workforce:admin_calendar_list' %}?year={{ view_year }}&month={{ view_month }}&selected={{ selected_date|date:'Y-m-d' }}" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Close">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-      </a>
-    </div>
-    <form action="{% url 'workforce:admin_import' %}" method="post" enctype="multipart/form-data" class="space-y-4 px-4 py-5 sm:px-6">
-      {% csrf_token %}
-      <input type="hidden" name="cal_year" value="{{ view_year }}">
-      <input type="hidden" name="cal_month" value="{{ view_month }}">
-      <input type="hidden" name="cal_selected" value="{{ selected_date|date:'Y-m-d' }}">
-      <p class="text-sm text-slate-600">
-        Upload a spreadsheet or tabular file (<strong class="text-slate-800">.csv</strong>, <strong class="text-slate-800">.xlsx</strong>). The first row should be column headers. Include a <strong class="text-slate-800">title</strong> (or task / activity) for each row. Optional: location, start, worker, recurrence, checklist, duration.
-      </p>
-      <div class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition hover:border-slate-400 hover:bg-slate-100">
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-400"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-        <p class="mt-3 text-sm font-medium text-slate-700">Choose file to upload</p>
-        <label class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-          Browse files
-          <input type="file" name="file" required accept=".csv,.txt,.xlsx,.xls" class="sr-only">
-        </label>
-        <p class="mt-3 text-xs text-slate-500">Worker column can be name, ID, or employee ID. Recurrence: none, daily, weekly, monthly.</p>
-      </div>
-      <div class="flex gap-3 pt-2">
-        <a href="{% url 'workforce:admin_calendar_list' %}?year={{ view_year }}&month={{ view_month }}&selected={{ selected_date|date:'Y-m-d' }}" class="flex flex-1 items-center justify-center rounded-xl border border-slate-200 py-3 font-semibold text-slate-700 hover:bg-slate-50">Cancel</a>
-        <button type="submit" class="flex-1 rounded-xl bg-slate-800 py-3 font-semibold text-white hover:bg-slate-700">Upload &amp; import</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
 {% endblock %}

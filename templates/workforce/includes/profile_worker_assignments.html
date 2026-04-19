@@ -1,0 +1,35 @@
+{% load tz %}
+<section class="space-y-3" aria-labelledby="{{ assign_heading_id|default:'worker-assign-heading' }}">
+  <h2 id="{{ assign_heading_id|default:'worker-assign-heading' }}" class="text-sm font-bold text-slate-900">Ongoing assignments</h2>
+  {% if upcoming_events %}
+  <ul class="space-y-2">
+    {% for row in upcoming_events %}
+    {% with ev=row.event %}
+    <li>
+      <a href="{% url 'workforce:worker_task_detail' event_id=ev.pk date_key=row.date_key %}" class="flex items-start gap-3 rounded-xl border border-slate-100 bg-white p-3 shadow-sm transition hover:border-slate-200">
+        <span class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg
+          {% if ev.color == 'orange' %}bg-orange-100 text-orange-700
+          {% elif ev.color == 'green' %}bg-emerald-100 text-emerald-700
+          {% elif ev.color == 'red' %}bg-red-100 text-red-700
+          {% else %}bg-sky-100 text-sky-700{% endif %}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/></svg>
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-slate-900">{{ ev.title }}</p>
+          <p class="mt-0.5 text-xs text-slate-500">
+            {% if ev.location %}{{ ev.location }} · {% endif %}
+            {% if row.status_key == 'in_progress' %}Started {{ ev.start|localtime|date:"g:i A" }}{% else %}Scheduled {{ ev.start|localtime|date:"g:i A" }}{% endif %}
+          </p>
+        </div>
+        <span class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide
+          {% if row.status_key == 'in_progress' %}bg-orange-100 text-orange-800
+          {% else %}bg-slate-200 text-slate-700{% endif %}">{{ row.status_label }}</span>
+      </a>
+    </li>
+    {% endwith %}
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">No upcoming assignments on your calendar.</p>
+  {% endif %}
+</section>

@@ -181,6 +181,6 @@ LOGOUT_REDIRECT_URL = 'workforce:login'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Imports (CSV/XLSX uploads)
+# Upload size limits (profile photos, exports, etc.)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
