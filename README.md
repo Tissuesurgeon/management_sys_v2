@@ -19,7 +19,7 @@ Access is controlled by a `Profile` role: `org_admin` (shown in the UI as **Faci
 
 - **Calendar and recurrence** — Facility managers create **maintenance tasks** (title, time, location, assigned technician, recurrence, checklist, color). The app expands recurrence into **derived tasks** per day using rules aligned with the original React app.
 - **Stable task identity** — Each derived occurrence has an ID of the form `{event_id}::{YYYY-MM-DD}` so the same logical task can be updated over time.
-- **Persisted task state** — Technicians’ progress is stored in **`TaskState`** (status, notes, checklist completion, photo count, last saved time). List views merge generated tasks with this saved state.
+- **Persisted task state** — Workers’ progress (cleaners, trades, etc.) is stored in **`TaskState`** (status, notes, checklist completion, photo count, last saved time). List views merge generated tasks with this saved state.
 - **Imports** — Facility managers can upload **CSV** or **XLSX** files to bulk-create calendar events (OpenPyXL).
 - **Technician registration** — Facility managers create **`WorkerInvitation`** records with a generated **invite code** and optional email/employee ID/trade constraints; technicians enter the code (and matching details) at sign-up so roster data lines up with your records.
 - **Reporting** — Facility managers can open a **detailed task report** with filters (date range, worker, status), pagination, and columns for activity, worker, status, checklist progress, photos, and notes.

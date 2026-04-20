@@ -35,13 +35,13 @@
     {% if worker.user %}
       <form action="{% url 'workforce:admin_worker_reset_code_generate' worker.pk %}" method="post" class="mt-6 border-t border-slate-100 pt-6">
         {% csrf_token %}
-        <p class="mb-3 break-words text-sm text-slate-600">Generate a one-time code (valid 48 hours) so this technician can reset their password on the sign-in page if they forgot it.</p>
+        <p class="mb-3 break-words text-sm text-slate-600">Generate a one-time code (valid 48 hours) so this worker can reset their password on the sign-in page if they forgot it.</p>
         <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">
           Generate password reset code
         </button>
       </form>
     {% else %}
-      <p class="mt-6 break-words border-t border-slate-100 pt-6 text-sm text-slate-500">This roster entry has no login yet. After the technician completes registration, you can generate a reset code here.</p>
+      <p class="mt-6 break-words border-t border-slate-100 pt-6 text-sm text-slate-500">This roster entry has no login yet. After the worker completes registration, you can generate a reset code here.</p>
     {% endif %}
 
     <div class="mt-6 border-t border-slate-100 pt-6">

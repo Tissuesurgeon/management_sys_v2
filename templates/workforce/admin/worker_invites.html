@@ -1,14 +1,14 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}Technician registration — FM OPS{% endblock %}
+{% block title %}Worker registration — FM OPS{% endblock %}
 {% block content %}
 <div>
-  {% include "workforce/includes/page_header.html" with eyebrow="Roster" title="Technician registration" subtitle="Pre-register field technicians with a code. Share the code (and optional email, employee ID, or trade) so they can sign up quickly." %}
+  {% include "workforce/includes/page_header.html" with eyebrow="Roster" title="Worker registration" subtitle="Pre-register workers with a code. Share the code (and optional email, employee ID, or trade) so they can sign up quickly." %}
 
   <div class="mb-6">
     <a href="{% url 'workforce:admin_worker_invite_create' %}" class="inline-flex items-center justify-center rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-700">
       + Add registration
     </a>
-    <a href="{% url 'workforce:admin_workers' %}" class="ml-3 text-sm font-semibold text-slate-700 hover:underline">Back to technicians</a>
+    <a href="{% url 'workforce:admin_workers' %}" class="ml-3 text-sm font-semibold text-slate-700 hover:underline">Back to workers</a>
   </div>
 
   <div class="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -43,7 +43,7 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="7" class="px-4 py-10 text-center text-slate-500">No registrations yet. Add one to get a code to share with a technician.</td>
+            <td colspan="7" class="px-4 py-10 text-center text-slate-500">No registrations yet. Add one to get a code to share with a worker.</td>
           </tr>
         {% endfor %}
       </tbody>

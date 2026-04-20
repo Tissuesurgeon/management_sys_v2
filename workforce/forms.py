@@ -438,8 +438,6 @@ class WorkerInvitationForm(forms.ModelForm):
             'employee_id',
             'name',
             'title',
-            'department',
-            'facility_location',
             'trade',
         ]
         widgets = {
@@ -447,8 +445,6 @@ class WorkerInvitationForm(forms.ModelForm):
             'employee_id': forms.TextInput(attrs={'class': _IN, 'placeholder': 'e.g. 4812-X (optional)'}),
             'name': forms.TextInput(attrs={'class': _IN}),
             'title': forms.TextInput(attrs={'class': _IN}),
-            'department': forms.TextInput(attrs={'class': _IN}),
-            'facility_location': forms.TextInput(attrs={'class': _IN}),
             'trade': forms.Select(attrs={'class': _SEL}),
         }
 

@@ -33,7 +33,7 @@
       {% nav_active request 'admin_workers' 'admin_worker_detail' 'admin_worker_invites' 'admin_worker_invite_create' as nav_workers %}
       <a href="{% url 'workforce:admin_workers' %}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {% if nav_workers %}bg-white text-slate-900 shadow-sm{% else %}text-slate-300 hover:bg-slate-700/50 hover:text-white{% endif %}">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5 shrink-0 opacity-90"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>
-        Technicians
+        Workers
       </a>
       {% nav_active request 'admin_profile' as nav_prof %}
       <a href="{% url 'workforce:admin_profile' %}" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {% if nav_prof %}bg-white text-slate-900 shadow-sm{% else %}text-slate-300 hover:bg-slate-700/50 hover:text-white{% endif %}">
@@ -83,7 +83,7 @@
         {% nav_active request 'admin_workers' 'admin_worker_detail' 'admin_worker_invites' 'admin_worker_invite_create' as m_w %}
         <a href="{% url 'workforce:admin_workers' %}" class="flex min-h-[3.5rem] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-1 text-[9px] font-bold uppercase leading-tight tracking-wide touch-manipulation {% if m_w %}bg-sky-100 text-slate-900 shadow-sm{% else %}text-slate-400 active:bg-slate-50{% endif %}">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>
-          <span class="leading-none">Techs</span>
+          <span class="leading-none">Workers</span>
         </a>
         {% nav_active request 'admin_profile' as m_prof %}
         <a href="{% url 'workforce:admin_profile' %}" class="flex min-h-[3.5rem] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-1 text-[9px] font-bold uppercase leading-tight tracking-wide touch-manipulation {% if m_prof %}bg-sky-100 text-slate-900 shadow-sm{% else %}text-slate-400 active:bg-slate-50{% endif %}">

@@ -2,7 +2,7 @@
 {% block title %}Task report — FM OPS{% endblock %}
 {% block content %}
 <div class="mx-auto w-full min-w-0 max-w-5xl overflow-x-clip">
-  {% include "workforce/includes/page_header.html" with eyebrow="Operations" title="Task report" subtitle="Every saved task with status, notes, photos, and checklist progress. Filter by date, technician (trade pool), and status." %}
+  {% include "workforce/includes/page_header.html" with eyebrow="Operations" title="Task report" subtitle="Every saved task with status, notes, photos, and checklist progress. Filter by date, worker (trade pool), and status." %}
 
   <div class="mb-6 flex min-w-0 flex-wrap items-stretch gap-3">
     <a href="{% url 'workforce:admin_tasks' %}" class="inline-flex min-w-0 max-w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
@@ -39,7 +39,7 @@
       <input type="date" name="date_to" id="id_date_to" value="{{ date_to_str }}" class="w-full max-w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm sm:w-auto">
     </div>
     <div class="w-full min-w-0 sm:min-w-[12rem] sm:flex-1 sm:max-w-xs">
-      <label class="mb-1 block text-xs font-bold uppercase text-slate-500" for="id_worker">Technician (trade)</label>
+      <label class="mb-1 block text-xs font-bold uppercase text-slate-500" for="id_worker">Worker (trade)</label>
       <select name="worker" id="id_worker" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
         <option value="">All trades</option>
         {% for w in workers %}
