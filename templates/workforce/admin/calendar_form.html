@@ -1,11 +1,14 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}{{ title }} — FM OPS{% endblock %}
+{% block title %}{{ title }} — Pavilion{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-2xl">
-  {% include "workforce/includes/page_header.html" with eyebrow="Maintenance" title=title subtitle="Set title, description, and checklist. Assign a trade (plumber, electrician, cleaner, etc.); all workers in that trade share the task until it is completed. The schedule and their tasks are built from these records." %}
+  {% include "workforce/includes/page_header.html" with eyebrow="Maintenance" title=title subtitle="Set title, description, and checklist. Assign a trade (plumber, electrician, cleaner, etc.); all workers in that trade share the task until it is completed. The schedule and their tasks are built from these records. For daily/weekly/monthly repeats, use Add tasks for month or Django admin." %}
   <form method="post" class="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
     {% csrf_token %}
-    {% for field in form %}
+    {% for field in form.hidden_fields %}
+      {{ field }}
+    {% endfor %}
+    {% for field in form.visible_fields %}
       <div>
         <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ field.id_for_label }}">{{ field.label }}</label>
         {{ field.errors }}

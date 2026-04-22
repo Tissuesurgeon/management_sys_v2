@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
+from django.core.exceptions import ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import transaction
 from django.db.models import Count, Q
@@ -34,6 +35,7 @@ from workforce.forms import (
 from workforce.models import (
     MaintenanceTask,
     Profile,
+    TaskEvidencePhoto,
     TaskState,
     Worker,
     WorkerInvitation,
@@ -42,8 +44,52 @@ from workforce.models import (
 )
 from workforce.utils import ensure_profile
 from workforce.services.date_utils import date_key, parse_date_key
+try:
+    from PIL import Image as PILImage
+except ImportError:  # pragma: no cover
+    PILImage = None
+
+_EVIDENCE_MAX_BYTES = 5 * 1024 * 1024
+_EVIDENCE_MAX_PER_TASK = 20
+
+
+def _validate_evidence_upload(f) -> None:
+    if not f or not getattr(f, 'name', ''):
+        raise ValidationError('Choose an image file.')
+    if getattr(f, 'size', 0) > _EVIDENCE_MAX_BYTES:
+        raise ValidationError('Image must be under 5 MB.')
+    if PILImage is not None:
+        f.seek(0)
+        try:
+            with PILImage.open(f) as im:
+                im.verify()
+        except Exception as exc:  # noqa: BLE001
+            raise ValidationError('Please upload a valid image file (JPEG, PNG, or WebP).') from exc
+        f.seek(0)
+
+
+def _sync_evidence_photo_count(derived_id: str) -> int:
+    n = TaskEvidencePhoto.objects.filter(derived_task_id=derived_id).count()
+    st = TaskState.objects.filter(derived_task_id=derived_id).first()
+    if st:
+        if st.photo_count != n:
+            st.photo_count = n
+            st.save(update_fields=['photo_count', 'last_saved_at'])
+    elif n:
+        TaskState.objects.create(
+            derived_task_id=derived_id,
+            status=TaskState.Status.SCHEDULED,
+            notes='',
+            checklist_done={},
+            photo_count=n,
+        )
+    return n
+
+
 from workforce.services.tasks import (
+    checklist_is_complete,
     collect_state_map_for_ids,
+    effective_worker_display_status,
     generate_tasks_from_calendar,
     merge_task_state,
     parse_derived_task_id,
@@ -70,7 +116,7 @@ def _active_merged_tasks(
     worker_trade: Optional[str] = None,
     viewer_worker_pk: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
-    """Generated tasks for ``day`` with TaskState merged in; drops completed (hidden from all users)."""
+    """Generated tasks for ``day`` with TaskState merged in; drops only truly completed tasks."""
     tasks = generate_tasks_from_calendar(
         events,
         day,
@@ -228,6 +274,7 @@ def signup(request: HttpRequest) -> HttpResponse:
                     user=user,
                     name=inv_locked.name,
                     title=inv_locked.title,
+                    gender=inv_locked.gender or '',
                     department=inv_locked.department,
                     employee_id=inv_locked.employee_id or (form.cleaned_data.get('employee_id') or '').strip(),
                     facility_location=inv_locked.facility_location,
@@ -1019,6 +1066,9 @@ def worker_history(request: HttpRequest) -> HttpResponse:
         ev = MaintenanceTask.objects.filter(pk=eid, assigned_trade=worker.trade).first()
         if not ev:
             continue
+        checklist = list(ev.checklist or [])
+        if not checklist_is_complete(checklist, st.checklist_done):
+            continue
         rows.append({'state': st, 'event': ev, 'date_key': parts[1]})
     return render(request, 'workforce/worker/history.html', {'rows': rows})
 
@@ -1115,11 +1165,9 @@ def worker_task_detail(request: HttpRequest, event_id: int, date_key: str) -> Ht
     if st:
         initial['status'] = st.status
         initial['notes'] = st.notes
-        initial['photo_count'] = st.photo_count
     else:
         initial['status'] = TaskState.Status.SCHEDULED
         initial['notes'] = ''
-        initial['photo_count'] = 0
 
     form = TaskStateUpdateForm(
         request.POST or None,
@@ -1129,20 +1177,37 @@ def worker_task_detail(request: HttpRequest, event_id: int, date_key: str) -> Ht
     )
 
     if request.method == 'POST':
+        remove_pk = request.POST.get('remove_photo')
+        if remove_pk:
+            try:
+                rid = int(remove_pk)
+            except (TypeError, ValueError):
+                raise Http404('Invalid photo') from None
+            photo = get_object_or_404(TaskEvidencePhoto, pk=rid, derived_task_id=derived_id)
+            photo.image.delete(save=False)
+            photo.delete()
+            _sync_evidence_photo_count(derived_id)
+            messages.success(request, 'Photo removed.')
+            return redirect('workforce:worker_task_detail', event_id=event_id, date_key=date_key)
+
         action = request.POST.get('action', 'save')
-        if action == 'add_photo':
-            prev = TaskState.objects.filter(derived_task_id=derived_id).first()
-            new_count = (prev.photo_count if prev else 0) + 1
-            TaskState.objects.update_or_create(
-                derived_task_id=derived_id,
-                defaults={
-                    'photo_count': new_count,
-                    'status': prev.status if prev else TaskState.Status.SCHEDULED,
-                    'notes': prev.notes if prev else '',
-                    'checklist_done': prev.checklist_done if prev else {},
-                },
-            )
-            messages.success(request, 'Photo added.')
+        if action == 'upload_photo':
+            f = request.FILES.get('evidence_photo')
+            try:
+                _validate_evidence_upload(f)
+            except ValidationError as exc:
+                msg = exc.messages[0] if getattr(exc, 'messages', None) else str(exc)
+                messages.error(request, msg)
+                return redirect('workforce:worker_task_detail', event_id=event_id, date_key=date_key)
+            if TaskEvidencePhoto.objects.filter(derived_task_id=derived_id).count() >= _EVIDENCE_MAX_PER_TASK:
+                messages.error(
+                    request,
+                    f'You can upload at most {_EVIDENCE_MAX_PER_TASK} photos per task.',
+                )
+                return redirect('workforce:worker_task_detail', event_id=event_id, date_key=date_key)
+            TaskEvidencePhoto.objects.create(derived_task_id=derived_id, image=f)
+            _sync_evidence_photo_count(derived_id)
+            messages.success(request, 'Photo uploaded.')
             return redirect('workforce:worker_task_detail', event_id=event_id, date_key=date_key)
 
     if request.method == 'POST' and form.is_valid():
@@ -1154,11 +1219,18 @@ def worker_task_detail(request: HttpRequest, event_id: int, date_key: str) -> Ht
                 done[str(i)] = True
         status_val = form.cleaned_data['status']
         if action == 'complete':
-            status_val = TaskState.Status.COMPLETED
+            if checklist_is_complete(checklist_keys, done):
+                status_val = TaskState.Status.COMPLETED
+            else:
+                status_val = TaskState.Status.IN_PROGRESS
+                messages.warning(
+                    request,
+                    'Check every item on the inspection protocol before marking this task complete. Your progress was saved.',
+                )
         elif action == 'draft':
             if status_val != TaskState.Status.COMPLETED:
                 status_val = TaskState.Status.IN_PROGRESS
-        photo_n = form.cleaned_data.get('photo_count') or 0
+        photo_n = TaskEvidencePhoto.objects.filter(derived_task_id=derived_id).count()
         TaskState.objects.update_or_create(
             derived_task_id=derived_id,
             defaults={
@@ -1168,15 +1240,23 @@ def worker_task_detail(request: HttpRequest, event_id: int, date_key: str) -> Ht
                 'checklist_done': done,
             },
         )
-        messages.success(request, 'Task saved.')
-        if action == 'complete':
+        if action == 'complete' and status_val == TaskState.Status.COMPLETED:
+            messages.success(request, 'Task saved.')
             return redirect('workforce:worker_history')
+        if not (action == 'complete' and status_val != TaskState.Status.COMPLETED):
+            messages.success(request, 'Task saved.')
         if action == 'draft':
             return redirect('workforce:worker_my_tasks')
         return redirect('workforce:worker_task_detail', event_id=event_id, date_key=date_key)
 
-    pc = st.photo_count if st else 0
-    photo_preview_range = list(range(min(pc, 4)))
+    evidence_photos = list(TaskEvidencePhoto.objects.filter(derived_task_id=derived_id))
+    pc = len(evidence_photos)
+
+    display_status = effective_worker_display_status(
+        st.status if st else TaskState.Status.SCHEDULED,
+        checklist_keys,
+        st.checklist_done if st else {},
+    )
 
     return render(
         request,
@@ -1188,6 +1268,8 @@ def worker_task_detail(request: HttpRequest, event_id: int, date_key: str) -> Ht
             'form': form,
             'date_key': date_key,
             'persist': st,
-            'photo_preview_range': photo_preview_range,
+            'display_status': display_status,
+            'evidence_photos': evidence_photos,
+            'photo_count': pc,
         },
     )

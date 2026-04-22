@@ -1,7 +1,7 @@
 {% extends "workforce/base_worker.html" %}
-{% block title %}{{ task.title }} — FM OPS{% endblock %}
+{% block title %}{{ task.title }} — Pavilion{% endblock %}
 {% block content %}
-<form method="post" class="pb-8">
+<form method="post" enctype="multipart/form-data" class="pb-8" id="task-detail-form">
   {% csrf_token %}
   <div class="md:hidden">
     <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Tasks &gt; Inspection</p>
@@ -19,7 +19,7 @@
       </div>
       <div>
         {% if persist %}
-          {% include "workforce/includes/status_badge.html" with status=persist.status %}
+          {% include "workforce/includes/status_badge.html" with status=display_status %}
         {% else %}
           {% include "workforce/includes/status_badge.html" with status='scheduled' %}
         {% endif %}
@@ -41,7 +41,7 @@
       </div>
       <div>
         {% if persist %}
-          {% include "workforce/includes/status_badge.html" with status=persist.status %}
+          {% include "workforce/includes/status_badge.html" with status=display_status %}
         {% else %}
           {% include "workforce/includes/status_badge.html" with status='scheduled' %}
         {% endif %}
@@ -78,19 +78,25 @@
       <section class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-semibold text-slate-900">Photo evidence</h2>
-          <span class="text-xs font-semibold text-slate-500">{{ persist.photo_count|default:0 }} uploaded</span>
+          <span class="text-xs font-semibold text-slate-500">{{ photo_count }} uploaded</span>
         </div>
-        <div class="mt-4 grid grid-cols-2 gap-2">
-          {% for _ in photo_preview_range %}
-            <div class="aspect-square rounded-lg bg-gradient-to-br from-slate-200 to-slate-300"></div>
+        <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {% for p in evidence_photos %}
+            <div class="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+              <img src="{{ p.image.url }}" alt="Evidence photo" class="h-full w-full object-cover" loading="lazy" width="256" height="256">
+              <button type="submit" name="remove_photo" value="{{ p.pk }}" formnovalidate class="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/85 text-white shadow-sm hover:bg-slate-900" title="Remove photo" aria-label="Remove photo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
           {% endfor %}
-          <button type="submit" name="action" value="add_photo" formnovalidate class="flex aspect-square flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-slate-400 hover:text-slate-600">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-            <span class="mt-1 text-xs font-semibold">Add photo</span>
-          </button>
+        </div>
+        <div class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/80 p-4">
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600" for="id_evidence_photo">Upload from device</label>
+          <p class="mb-2 text-xs text-slate-500">JPEG, PNG, or WebP · max 5 MB each · up to 20 photos.</p>
+          <input type="file" name="evidence_photo" id="id_evidence_photo" accept="image/jpeg,image/png,image/webp" class="block w-full cursor-pointer text-sm text-slate-600 file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-800 file:shadow-sm file:ring-1 file:ring-slate-200 hover:file:bg-slate-50">
+          <button type="submit" name="action" value="upload_photo" formnovalidate class="mt-3 inline-flex w-full min-h-11 items-center justify-center rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 sm:w-auto">Upload photo</button>
         </div>
         <p class="mt-3 text-xs text-slate-500">At least one photo of the gauge and full unit may be required for audit.</p>
-        <div class="hidden">{{ form.photo_count }}</div>
       </section>
 
       <div class="mt-4 rounded-xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-900">

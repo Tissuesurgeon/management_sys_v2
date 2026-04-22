@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone as dj_tz
 
 from workforce.models import (
+    Gender,
     MaintenanceTask,
     Profile,
     TaskState,
@@ -44,13 +45,13 @@ class SignupForm(UserCreationForm):
         choices=[('', 'Select trade')] + list(Worker.Trade.choices),
         required=False,
         label='Trade',
-        help_text='Required for field technicians (plumber, electrician, or general technician).',
+        help_text='Required for workers (plumber, electrician, or general technician).',
     )
     worker_name = forms.CharField(
         max_length=200,
         required=False,
-        label='Full name (field technicians)',
-        help_text='Required when registering as a field technician (unless you use a registration code from your facility manager).',
+        label='Full name (workers)',
+        help_text='Required when registering as a worker (unless you use a registration code from your facility manager).',
     )
     employee_id = forms.CharField(max_length=64, required=False, label='Employee ID')
     registration_code = forms.CharField(
@@ -120,7 +121,7 @@ class SignupForm(UserCreationForm):
                 if not name:
                     data['worker_name'] = inv.name
         elif role == Profile.Role.WORKER and not name:
-            self.add_error('worker_name', 'Full name is required for field technician accounts.')
+            self.add_error('worker_name', 'Full name is required for worker accounts.')
 
         if role == Profile.Role.WORKER:
             inv = getattr(self, '_invitation', None)
@@ -180,7 +181,7 @@ class PasswordResetWithCodeForm(forms.Form):
         if not prof or prof.role != Profile.Role.WORKER:
             self.add_error(
                 'username',
-                'Password reset with a code is only available for field technician accounts.',
+                'Password reset with a code is only available for worker accounts.',
             )
             return data
         now = dj_tz.now()
@@ -229,10 +230,11 @@ class MaintenanceTaskForm(forms.ModelForm):
             'start',
             'duration_minutes',
             'assigned_trade',
-            'recurrence_type',
-            'recurrence_end',
             'color',
         ]
+        labels = {
+            'start': 'Date',
+        }
         widgets = {
             'title': forms.TextInput(attrs={'class': _IN}),
             'description': forms.Textarea(
@@ -247,11 +249,9 @@ class MaintenanceTaskForm(forms.ModelForm):
                 attrs={'type': 'datetime-local', 'class': _IN},
                 format='%Y-%m-%dT%H:%M',
             ),
-            'duration_minutes': forms.NumberInput(attrs={'class': _IN, 'min': 1}),
+            'duration_minutes': forms.HiddenInput(),
             'assigned_trade': forms.Select(attrs={'class': _SEL}),
-            'recurrence_type': forms.Select(attrs={'class': _SEL}),
-            'recurrence_end': forms.DateInput(attrs={'type': 'date', 'class': _IN}),
-            'color': forms.Select(attrs={'class': _SEL}),
+            'color': forms.HiddenInput(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -265,8 +265,6 @@ class MaintenanceTaskForm(forms.ModelForm):
                 'start',
                 'duration_minutes',
                 'assigned_trade',
-                'recurrence_type',
-                'recurrence_end',
                 'color',
             ],
         )
@@ -288,6 +286,12 @@ class MaintenanceTaskForm(forms.ModelForm):
         raw = self.cleaned_data.get('checklist_text') or ''
         lines = [x.strip() for x in raw.splitlines() if x.strip()]
         return lines if lines else ['Verify completion']
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('duration_minutes') is None:
+            cleaned['duration_minutes'] = 60
+        return cleaned
 
     def save(self, commit=True):
         obj = super().save(commit=False)
@@ -344,7 +348,7 @@ def make_maintenance_task_bulk_row_form(first_day: date, last_day: date):
             max_value=24 * 60,
             initial=60,
             required=False,
-            widget=forms.NumberInput(attrs={'class': _IN, 'min': 1}),
+            widget=forms.HiddenInput(),
         )
         assigned_trade = forms.ChoiceField(
             choices=Worker.Trade.choices,
@@ -355,17 +359,13 @@ def make_maintenance_task_bulk_row_form(first_day: date, last_day: date):
             choices=MaintenanceTask.Recurrence.choices,
             initial=MaintenanceTask.Recurrence.NONE,
             required=False,
-            widget=forms.Select(attrs={'class': _SEL}),
-        )
-        recurrence_end = forms.DateField(
-            required=False,
-            widget=forms.DateInput(attrs={'type': 'date', 'class': _IN}),
+            widget=forms.HiddenInput(),
         )
         color = forms.ChoiceField(
             choices=MaintenanceTask.Color.choices,
             initial=MaintenanceTask.Color.BLUE,
             required=False,
-            widget=forms.Select(attrs={'class': _SEL}),
+            widget=forms.HiddenInput(),
         )
 
         def __init__(self, *args, **kwargs):
@@ -410,9 +410,6 @@ def make_maintenance_task_bulk_row_form(first_day: date, last_day: date):
             dm = cleaned.get('duration_minutes')
             if dm is None:
                 cleaned['duration_minutes'] = 60
-            rtype = cleaned.get('recurrence_type') or MaintenanceTask.Recurrence.NONE
-            if rtype != MaintenanceTask.Recurrence.NONE and not cleaned.get('recurrence_end'):
-                cleaned['recurrence_end'] = last_day
             return cleaned
 
     return MaintenanceTaskBulkRowForm
@@ -437,14 +434,17 @@ class WorkerInvitationForm(forms.ModelForm):
             'email',
             'employee_id',
             'name',
-            'title',
+            'gender',
             'trade',
         ]
+        labels = {
+            'gender': 'Gender',
+        }
         widgets = {
             'email': forms.EmailInput(attrs={'class': _IN, 'placeholder': 'worker@company.com (optional)'}),
             'employee_id': forms.TextInput(attrs={'class': _IN, 'placeholder': 'e.g. 4812-X (optional)'}),
             'name': forms.TextInput(attrs={'class': _IN}),
-            'title': forms.TextInput(attrs={'class': _IN}),
+            'gender': forms.Select(attrs={'class': _SEL}),
             'trade': forms.Select(attrs={'class': _SEL}),
         }
 
@@ -454,10 +454,18 @@ class WorkerInvitationForm(forms.ModelForm):
         self.fields['trade'].choices = [
             ('', 'Any trade (optional)'),
         ] + list(Worker.Trade.choices)
+        self.fields['gender'].required = False
+        self.fields['gender'].choices = [
+            ('', 'Select gender'),
+        ] + list(Gender.choices)
 
     def clean_trade(self):
         t = self.cleaned_data.get('trade')
         return t if t else None
+
+    def clean_gender(self):
+        g = self.cleaned_data.get('gender')
+        return g if g else ''
 
 
 class UserAccountForm(forms.ModelForm):
@@ -506,15 +514,31 @@ class ProfilePhotoForm(forms.ModelForm):
 class WorkerProfileForm(forms.ModelForm):
     class Meta:
         model = Worker
-        fields = ['name', 'title', 'department', 'employee_id', 'facility_location', 'trade']
+        fields = ['name', 'gender', 'title', 'department', 'employee_id', 'facility_location', 'trade']
+        labels = {
+            'title': 'Job title',
+            'gender': 'Gender',
+        }
         widgets = {
             'name': forms.TextInput(attrs={'class': _IN}),
+            'gender': forms.Select(attrs={'class': _SEL}),
             'title': forms.TextInput(attrs={'class': _IN}),
             'department': forms.TextInput(attrs={'class': _IN}),
             'employee_id': forms.TextInput(attrs={'class': _IN}),
             'facility_location': forms.TextInput(attrs={'class': _IN}),
             'trade': forms.Select(attrs={'class': _SEL}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['gender'].required = False
+        self.fields['gender'].choices = [
+            ('', 'Select gender'),
+        ] + list(Gender.choices)
+
+    def clean_gender(self):
+        g = self.cleaned_data.get('gender')
+        return g if g else ''
 
 
 class TaskStateUpdateForm(forms.Form):
@@ -525,12 +549,6 @@ class TaskStateUpdateForm(forms.Form):
     notes = forms.CharField(
         widget=forms.Textarea(attrs={'rows': 4, 'class': _TA}),
         required=False,
-    )
-    photo_count = forms.IntegerField(
-        min_value=0,
-        initial=0,
-        required=False,
-        widget=forms.NumberInput(attrs={'class': _IN, 'min': 0}),
     )
 
     def __init__(self, *args, checklist_keys=None, checklist_done=None, **kwargs):

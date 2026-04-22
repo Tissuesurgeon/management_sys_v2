@@ -1,6 +1,6 @@
-# FM OPS — Workforce management 
+# Pavilion management system — Workforce management 
 
-**FM OPS** is a web application for organizations that schedule field work, assign it to staff, and track completion. This repository is a **server-rendered** implementation built with **Django 5**: HTML templates, a SQLite database in development, and **Tailwind CSS** (via CDN) for a responsive UI with a desktop sidebar and mobile bottom navigation.
+**Pavilion management system** is a web application for organizations that schedule field work, assign it to staff, and track completion. This repository is a **server-rendered** implementation built with **Django 5**: HTML templates, a SQLite database in development, and **Tailwind CSS** (via CDN) for a responsive UI with a desktop sidebar and mobile bottom navigation.
 
 The app was created as a successor to a React single-page app (`Management_sys`). It follows similar URL patterns and behavior where it makes sense, but it is a separate codebase and does not import code from that project.
 

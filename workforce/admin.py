@@ -3,11 +3,19 @@ from django.contrib import admin
 from workforce.models import (
     MaintenanceTask,
     Profile,
+    TaskEvidencePhoto,
     TaskState,
     Worker,
     WorkerInvitation,
     WorkerPasswordResetCode,
 )
+
+
+@admin.register(TaskEvidencePhoto)
+class TaskEvidencePhotoAdmin(admin.ModelAdmin):
+    list_display = ('derived_task_id', 'image', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('derived_task_id',)
 
 
 @admin.register(Profile)
@@ -18,14 +26,14 @@ class ProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Worker)
 class WorkerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'trade', 'employee_id', 'department', 'user')
+    list_display = ('name', 'gender', 'trade', 'employee_id', 'department', 'user')
     list_filter = ('trade',)
     search_fields = ('name', 'employee_id')
 
 
 @admin.register(WorkerInvitation)
 class WorkerInvitationAdmin(admin.ModelAdmin):
-    list_display = ('invite_code', 'name', 'trade', 'email', 'employee_id', 'claimed_at', 'created_at')
+    list_display = ('invite_code', 'name', 'gender', 'trade', 'email', 'employee_id', 'claimed_at', 'created_at')
     list_filter = ('claimed_at',)
     search_fields = ('invite_code', 'name', 'email', 'employee_id')
     readonly_fields = ('invite_code', 'claimed_at', 'claimed_by', 'created_at', 'created_by')

@@ -12,8 +12,8 @@ def generate_worker_invite_code(length: int = 10) -> str:
 
 class Profile(models.Model):
     class Role(models.TextChoices):
+        WORKER = 'worker', 'Worker'
         ORG_ADMIN = 'org_admin', 'Facility manager'
-        WORKER = 'worker', 'Field technician'
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -30,6 +30,11 @@ class Profile(models.Model):
 
     def __str__(self):
         return f'{self.user.username} ({self.get_role_display()})'
+
+
+class Gender(models.TextChoices):
+    MALE = 'male', 'Male'
+    FEMALE = 'female', 'Female'
 
 
 class Worker(models.Model):
@@ -50,6 +55,11 @@ class Worker(models.Model):
         max_length=32,
         choices=Trade.choices,
         default=Trade.GENERAL_TECHNICIAN,
+    )
+    gender = models.CharField(
+        max_length=10,
+        choices=Gender.choices,
+        blank=True,
     )
     title = models.CharField(max_length=200, blank=True)
     department = models.CharField(max_length=200, blank=True)
@@ -81,6 +91,11 @@ class WorkerInvitation(models.Model):
     )
     name = models.CharField(max_length=200)
     title = models.CharField(max_length=200, blank=True)
+    gender = models.CharField(
+        max_length=10,
+        choices=Gender.choices,
+        blank=True,
+    )
     department = models.CharField(max_length=200, blank=True)
     facility_location = models.CharField(max_length=200, blank=True)
     trade = models.CharField(
@@ -232,3 +247,20 @@ class TaskState(models.Model):
 
     def __str__(self):
         return self.derived_task_id
+
+
+class TaskEvidencePhoto(models.Model):
+    """Photo uploaded by a worker for a specific derived task occurrence."""
+
+    derived_task_id = models.CharField(max_length=255, db_index=True)
+    image = models.ImageField(upload_to='task_evidence/%Y/%m/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['derived_task_id']),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.derived_task_id} #{self.pk}'

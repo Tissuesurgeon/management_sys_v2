@@ -1,5 +1,5 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}Bulk add tasks — {{ month_label }} — FM OPS{% endblock %}
+{% block title %}Bulk add tasks — {{ month_label }} — Pavilion{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-2xl">
   <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -57,40 +57,19 @@
               {{ form.location.errors }}
               {{ form.location }}
             </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.start.id_for_label }}">Start</label>
-                {{ form.start.errors }}
-                {{ form.start }}
-              </div>
-              <div>
-                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.duration_minutes.id_for_label }}">Duration (minutes)</label>
-                {{ form.duration_minutes.errors }}
-                {{ form.duration_minutes }}
-              </div>
+            <div>
+              <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.start.id_for_label }}">Date</label>
+              {{ form.start.errors }}
+              {{ form.start }}
             </div>
+            {{ form.duration_minutes }}
+            {{ form.recurrence_type }}
+            {{ form.color }}
             <div>
               <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.assigned_trade.id_for_label }}">{{ form.assigned_trade.label }}</label>
               {{ form.assigned_trade.errors }}
               {{ form.assigned_trade }}
               {% if form.assigned_trade.help_text %}<p class="mt-1 text-xs text-slate-500">{{ form.assigned_trade.help_text }}</p>{% endif %}
-            </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.recurrence_type.id_for_label }}">Recurrence</label>
-                {{ form.recurrence_type.errors }}
-                {{ form.recurrence_type }}
-              </div>
-              <div>
-                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.recurrence_end.id_for_label }}">Recurrence end</label>
-                {{ form.recurrence_end.errors }}
-                {{ form.recurrence_end }}
-              </div>
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-600" for="{{ form.color.id_for_label }}">Color</label>
-              {{ form.color.errors }}
-              {{ form.color }}
             </div>
           </div>
         </div>

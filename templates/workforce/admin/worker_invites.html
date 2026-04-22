@@ -1,5 +1,5 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}Worker registration — FM OPS{% endblock %}
+{% block title %}Worker registration — Pavilion{% endblock %}
 {% block content %}
 <div>
   {% include "workforce/includes/page_header.html" with eyebrow="Roster" title="Worker registration" subtitle="Pre-register workers with a code. Share the code (and optional email, employee ID, or trade) so they can sign up quickly." %}
@@ -17,6 +17,7 @@
         <tr>
           <th class="px-4 py-3">Code</th>
           <th class="px-4 py-3">Name</th>
+          <th class="px-4 py-3">Gender</th>
           <th class="px-4 py-3">Email</th>
           <th class="px-4 py-3">Employee ID</th>
           <th class="px-4 py-3">Trade</th>
@@ -29,6 +30,7 @@
           <tr class="align-top hover:bg-slate-50/80">
             <td class="whitespace-nowrap px-4 py-3 font-mono text-xs font-semibold tracking-wide text-slate-900">{{ inv.invite_code }}</td>
             <td class="px-4 py-3 font-medium text-slate-900">{{ inv.name }}</td>
+            <td class="px-4 py-3 text-slate-700">{% if inv.gender %}{{ inv.get_gender_display }}{% else %}—{% endif %}</td>
             <td class="px-4 py-3 text-slate-700">{{ inv.email|default:"—" }}</td>
             <td class="px-4 py-3 text-slate-700">{{ inv.employee_id|default:"—" }}</td>
             <td class="px-4 py-3 text-slate-700">{% if inv.trade %}{{ inv.get_trade_display }}{% else %}—{% endif %}</td>
@@ -43,7 +45,7 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="7" class="px-4 py-10 text-center text-slate-500">No registrations yet. Add one to get a code to share with a worker.</td>
+            <td colspan="8" class="px-4 py-10 text-center text-slate-500">No registrations yet. Add one to get a code to share with a worker.</td>
           </tr>
         {% endfor %}
       </tbody>

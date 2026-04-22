@@ -1,5 +1,5 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}Workers — FM OPS{% endblock %}
+{% block title %}Workers — Pavilion{% endblock %}
 {% block content %}
 <div>
   {% include "workforce/includes/page_header.html" with eyebrow="Roster" title="Workers" subtitle="Invite and manage cleaners, plumbers, electricians, general technicians, and other facility staff." %}
@@ -18,7 +18,7 @@
           <div class="min-w-0">
             <p class="font-semibold text-slate-900">{{ w.name }}</p>
             <p class="text-xs font-medium text-sky-800">{{ w.get_trade_display }}</p>
-            <p class="text-xs text-slate-500">{{ w.title }}</p>
+            <p class="text-xs text-slate-500">{% if w.gender %}{{ w.get_gender_display }}{% else %}—{% endif %}</p>
             <p class="text-xs text-slate-400">{{ w.department }}</p>
           </div>
         </div>

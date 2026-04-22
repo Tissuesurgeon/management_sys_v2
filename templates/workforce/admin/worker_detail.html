@@ -1,8 +1,8 @@
 {% extends "workforce/base_admin.html" %}
-{% block title %}{{ worker.name }} — FM OPS{% endblock %}
+{% block title %}{{ worker.name }} — Pavilion{% endblock %}
 {% block content %}
 <div class="mx-auto box-border w-full min-w-0 max-w-5xl overflow-x-clip">
-  {% include "workforce/includes/page_header.html" with eyebrow="Roster" title=worker.name subtitle=worker.title %}
+  {% include "workforce/includes/page_header.html" with eyebrow="Roster" title=worker.name subtitle=worker.get_trade_display %}
   <div class="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6">
     <dl class="space-y-0 text-sm">
       {% if worker.user %}
@@ -14,6 +14,14 @@
       <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
         <dt class="text-slate-500">Trade</dt>
         <dd class="min-w-0 break-words font-medium text-slate-900 sm:text-right">{{ worker.get_trade_display }}</dd>
+      </div>
+      <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
+        <dt class="text-slate-500">Gender</dt>
+        <dd class="min-w-0 break-words font-medium text-slate-900 sm:text-right">{{ worker.get_gender_display|default:"—" }}</dd>
+      </div>
+      <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
+        <dt class="text-slate-500">Job title</dt>
+        <dd class="min-w-0 break-words font-medium text-slate-900 sm:text-right">{{ worker.title|default:"—" }}</dd>
       </div>
       <div class="grid grid-cols-1 gap-1 border-b border-slate-100 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start sm:gap-x-4">
         <dt class="text-slate-500">Department</dt>

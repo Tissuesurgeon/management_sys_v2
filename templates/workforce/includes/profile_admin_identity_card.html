@@ -3,7 +3,7 @@
     {% if profile.photo %}
     <img src="{{ profile.photo.url }}" alt="" class="h-24 w-24 rounded-xl object-cover ring-2 ring-slate-100" width="96" height="96">
     {% else %}
-    <div class="flex h-24 w-24 items-center justify-center rounded-xl bg-slate-200 text-xl font-bold text-slate-500 ring-2 ring-slate-100" aria-hidden="true">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</div>
+    <div class="flex h-24 w-24 items-center justify-center rounded-xl bg-slate-100 ring-2 ring-slate-100" role="img" aria-label="No profile photo"><span class="text-5xl leading-none select-none" aria-hidden="true">👤</span></div>
     {% endif %}
     {% if profile.photo %}
     <span class="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow ring-2 ring-white" aria-hidden="true">

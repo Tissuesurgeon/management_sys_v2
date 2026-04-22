@@ -3,7 +3,7 @@
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
-from workforce.models import Profile, TaskState
+from workforce.models import Profile, TaskEvidencePhoto, TaskState
 
 User = get_user_model()
 
@@ -34,6 +34,9 @@ class Command(BaseCommand):
             )
             return
 
+        ev_n = TaskEvidencePhoto.objects.count()
+        TaskEvidencePhoto.objects.all().delete()
+        self.stdout.write(self.style.WARNING(f'Deleted {ev_n} TaskEvidencePhoto row(s).'))
         ts_n = TaskState.objects.count()
         TaskState.objects.all().delete()
         self.stdout.write(self.style.WARNING(f'Deleted {ts_n} TaskState row(s).'))

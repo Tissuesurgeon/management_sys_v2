@@ -5,6 +5,34 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from django.utils import timezone
 
 from workforce.models import MaintenanceTask, TaskState, Worker
+
+
+def checklist_is_complete(
+    checklist: List[str],
+    checklist_done: Optional[Dict[str, Any]],
+) -> bool:
+    """True when every checklist line index is marked done in ``checklist_done``."""
+    if not checklist:
+        return True
+    done = checklist_done or {}
+    for i in range(len(checklist)):
+        if not (done.get(str(i)) or done.get(i)):
+            return False
+    return True
+
+
+def effective_worker_display_status(
+    persisted_status: str,
+    checklist: List[str],
+    checklist_done: Optional[Dict[str, Any]],
+) -> str:
+    """UI / active-list status: completed only when the checklist is fully checked."""
+    if persisted_status == TaskState.Status.COMPLETED and not checklist_is_complete(
+        checklist,
+        checklist_done,
+    ):
+        return TaskState.Status.IN_PROGRESS
+    return persisted_status
 from workforce.services.date_utils import date_key, format_time, start_of_day, to_aware
 from workforce.services.recurrence import occurs_on_event_day, recurrence_dict_from_task
 
@@ -87,16 +115,23 @@ def merge_task_state(
     tasks: List[DerivedTask],
     state_map: Dict[str, TaskState],
 ) -> List[Dict[str, Any]]:
-    """Attach persisted status/notes from TaskState."""
+    """Attach persisted status/notes from TaskState.
+
+    ``status`` is the worker-facing effective status: ``completed`` only when the
+    persisted status is completed *and* every checklist item is checked.
+    """
     merged = []
     for t in tasks:
         st = state_map.get(t.id)
+        persisted = st.status if st else t.status
+        checklist_done = st.checklist_done if st else {}
         row = {
             'task': t,
             'persist': st,
-            'status': st.status if st else t.status,
+            'persisted_status': persisted,
+            'status': effective_worker_display_status(persisted, t.checklist, checklist_done),
             'notes': st.notes if st else '',
-            'checklist_done': st.checklist_done if st else {},
+            'checklist_done': checklist_done,
             'photo_count': st.photo_count if st else 0,
         }
         merged.append(row)

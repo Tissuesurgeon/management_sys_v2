@@ -3,7 +3,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from workforce.models import MaintenanceTask, TaskState, Worker
+from workforce.models import MaintenanceTask, TaskEvidencePhoto, TaskState, Worker
 
 
 class Command(BaseCommand):
@@ -33,8 +33,10 @@ class Command(BaseCommand):
                 return
 
         with transaction.atomic():
+            n_ev = TaskEvidencePhoto.objects.count()
             n_state = TaskState.objects.count()
             n_tasks = MaintenanceTask.objects.count()
+            TaskEvidencePhoto.objects.all().delete()
             TaskState.objects.all().delete()
             MaintenanceTask.objects.all().delete()
             Worker.objects.update(
@@ -45,7 +47,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f'Deleted {n_state} task state row(s), {n_tasks} maintenance task(s). '
-                'Worker task counters reset.',
+                f'Deleted {n_ev} task evidence photo(s), {n_state} task state row(s), '
+                f'{n_tasks} maintenance task(s). Worker task counters reset.',
             ),
         )

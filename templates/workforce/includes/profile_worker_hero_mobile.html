@@ -3,7 +3,7 @@
     {% if profile.photo %}
     <img src="{{ profile.photo.url }}" alt="" class="h-28 w-28 rounded-2xl object-cover ring-4 ring-white shadow-md sm:h-32 sm:w-32" width="128" height="128">
     {% else %}
-    <div class="flex h-28 w-28 items-center justify-center rounded-2xl bg-slate-200 text-2xl font-bold text-slate-500 ring-4 ring-white shadow-md sm:h-32 sm:w-32" aria-hidden="true">{{ worker.name|default:user.get_full_name|slice:":1"|upper }}</div>
+    <div class="flex h-28 w-28 items-center justify-center rounded-2xl bg-slate-100 ring-4 ring-white shadow-md sm:h-32 sm:w-32" role="img" aria-label="No profile photo"><span class="text-6xl leading-none select-none sm:text-7xl" aria-hidden="true">👤</span></div>
     {% endif %}
     {% if profile.photo %}
     <span class="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow ring-2 ring-white" title="Profile photo set" aria-hidden="true">
@@ -13,8 +13,8 @@
   </div>
   <h1 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{{ worker.name|default:user.get_full_name }}</h1>
   <div class="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+    {% if worker.gender %}<span>{{ worker.get_gender_display }}</span>{% endif %}
     {% if worker.title %}<span>{{ worker.title }}</span>{% endif %}
-    {% if worker.title and worker.department %}<span class="text-slate-300" aria-hidden="true">|</span>{% endif %}
     {% if worker.department %}<span>{{ worker.department }}</span>{% endif %}
   </div>
   {% if worker.employee_id %}
