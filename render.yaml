@@ -1,0 +1,34 @@
+# Optional Render Blueprint (Infrastructure as Code).
+# https://docs.render.com/infrastructure-as-code
+#
+# Before first deploy, set these in the Render dashboard (Environment) for the web service:
+#   • Create a PostgreSQL instance, then use "Link database" so DATABASE_URL is injected, OR paste Internal Database URL into DATABASE_URL.
+#   • DJANGO_ALLOWED_HOSTS = your exact hostname (e.g. my-app.onrender.com)
+#   • DJANGO_CSRF_TRUSTED_ORIGINS = https://my-app.onrender.com
+#
+# SECRET_KEY below uses generateValue; you can replace with a fixed secret later.
+
+services:
+  - type: web
+    name: management-sys
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_BEHIND_PROXY
+        value: "true"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        sync: false

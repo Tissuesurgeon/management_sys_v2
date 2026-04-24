@@ -79,6 +79,15 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
 _allowed = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver')
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
 
+_csrf = (os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '') or '').strip()
+if _csrf:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf.split(',') if o.strip()]
+
+# HTTPS behind Render / other reverse proxies (set DJANGO_BEHIND_PROXY=1 in production on Render)
+if (not DEBUG) and (os.environ.get('DJANGO_BEHIND_PROXY', '').lower() in ('1', 'true', 'yes')):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+
 
 # Application definition
 
@@ -94,6 +103,11 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    *(
+        ('whitenoise.middleware.WhiteNoiseMiddleware',)
+        if not DEBUG
+        else ()
+    ),
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -227,9 +241,21 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+if not DEBUG:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+
+_mroot = (os.environ.get('MEDIA_ROOT', '') or '').strip()
 MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = Path(_mroot) if _mroot else (BASE_DIR / 'media')
 
 LOGIN_URL = 'workforce:login'
 LOGIN_REDIRECT_URL = 'workforce:home'

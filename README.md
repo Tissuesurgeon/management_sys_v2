@@ -38,6 +38,7 @@ Django’s built-in **admin site** is available at **`/django-admin/`** for staf
 | Uploads | User media (e.g. profile photos) under `media/`; import size limits in settings |
 | Styling | Tailwind Play CDN, Inter font, `static/custom.css` |
 | Spreadsheets | openpyxl for XLSX |
+| Process / static (prod) | Gunicorn, WhiteNoise (`collectstatic` → `staticfiles/`) |
 
 ---
 
@@ -107,10 +108,74 @@ Settings load optional **`KEY=value`** entries from a **`.env`** file in the pro
 
 ---
 
+## Deploy on Render
+
+[Render](https://render.com/) can run this app as a **Web Service** with **Gunicorn**, **WhiteNoise** for static assets, and a **Render PostgreSQL** database. The repo includes **`render.yaml`** (optional Blueprint) and **`runtime.txt`** (Python version).
+
+### 1. Create a PostgreSQL database
+
+1. In the Render dashboard: **New +** → **PostgreSQL**.
+2. Choose a name, region, and instance type (see [Render Postgres](https://render.com/docs/postgresql-creating-connecting)).
+3. After creation, copy the **Internal Database URL** (`postgresql://…`). You will attach it to the web service as `DATABASE_URL`.
+
+### 2. Create the Web Service
+
+1. **New +** → **Web Service** → connect this Git repository.
+2. **Root directory**: use the repo root if `manage.py` is at the root (e.g. `management_sys_v2/` if the project lives in that folder only).
+3. **Runtime**: Python.
+4. **Build command**:
+
+   ```bash
+   pip install -r requirements.txt && python manage.py collectstatic --noinput
+   ```
+
+5. **Pre-deploy command** (migrations on each release):
+
+   ```bash
+   python manage.py migrate --noinput
+   ```
+
+6. **Start command**:
+
+   ```bash
+   gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+   ```
+
+7. Link the database: **Environment** → **Link database** → select the Postgres you created (Render injects **`DATABASE_URL`**).
+
+### 3. Environment variables
+
+Set these on the **Web Service** (not only locally):
+
+| Variable | Example / note |
+|----------|----------------|
+| `SECRET_KEY` | Long random string (e.g. `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`). |
+| `DJANGO_DEBUG` | `false` |
+| `DJANGO_ALLOWED_HOSTS` | Your Render hostname only, e.g. `my-app.onrender.com` (no `https://`). |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://my-app.onrender.com` (matches the public URL). |
+| `DJANGO_BEHIND_PROXY` | `true` (so Django trusts `X-Forwarded-Proto` from Render’s TLS terminator). |
+| `DATABASE_URL` | Injected automatically when you link Postgres, or paste the **Internal Database URL**. |
+
+`PYTHON_VERSION` is optional (defaults are fine); this project includes **`runtime.txt`** with `3.12.7`.
+
+### 4. Superuser and media files
+
+- Run a **shell** on the service (Render dashboard → **Shell**) and create an admin user:  
+  `python manage.py createsuperuser`
+- **User uploads** (profile photos, etc.) use `MEDIA_ROOT`. On Render’s ephemeral filesystem, files are lost on redeploy unless you add a [**Persistent Disk**](https://render.com/docs/disks) and set **`MEDIA_ROOT`** to the mount path (also set in Environment), or use external object storage (e.g. S3).
+
+### 5. Optional: Blueprint
+
+To define the web service from Git, use **`render.yaml`** at the repo root and [Render Blueprints](https://render.com/docs/infrastructure-as-code). You still need to create/link PostgreSQL and set `DJANGO_ALLOWED_HOSTS` / `DJANGO_CSRF_TRUSTED_ORIGINS` to your real hostname.
+
+---
+
 ## Repository layout
 
 | Path | Role |
 |------|------|
+| `render.yaml` | Optional [Render](https://render.com/) Blueprint (Web Service) |
+| `runtime.txt` | Python version hint for Render / local |
 | `config/` | Django settings, root URLconf |
 | `workforce/` | App: models, views, forms, import parser, recurrence and task services |
 | `templates/workforce/` | Admin and worker templates |
