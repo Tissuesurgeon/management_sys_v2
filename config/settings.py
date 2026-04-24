@@ -244,12 +244,15 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 if not DEBUG:
+    # Use CompressedStaticFilesStorage (not Manifest): hashed manifest names only match if
+    # {% static %} resolves via the manifest; DEBUG=True or any mismatch yields 404 on
+    # hosts like Render. Non-manifest keeps paths like /static/images/logo.jpg on disk.
     STORAGES = {
         'default': {
             'BACKEND': 'django.core.files.storage.FileSystemStorage',
         },
         'staticfiles': {
-            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
         },
     }
 

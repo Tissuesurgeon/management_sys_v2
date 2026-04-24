@@ -126,8 +126,10 @@ Settings load optional **`KEY=value`** entries from a **`.env`** file in the pro
 4. **Build command**:
 
    ```bash
-   pip install -r requirements.txt && python manage.py collectstatic --noinput
+   pip install -r requirements.txt && DJANGO_DEBUG=false python manage.py collectstatic --noinput
    ```
+
+   Use `DJANGO_DEBUG=false` for `collectstatic` so it runs with production static-file settings (WhiteNoise). Ensure `SECRET_KEY` is available to the build (same env as the service on Render).
 
 5. **Pre-deploy command** (migrations on each release):
 
@@ -157,6 +159,8 @@ Set these on the **Web Service** (not only locally):
 | `DATABASE_URL` | Injected automatically when you link Postgres, or paste the **Internal Database URL**. |
 
 `PYTHON_VERSION` is optional (defaults are fine); this project includes **`runtime.txt`** with `3.12.7`.
+
+**Static files (logos, images under `static/images/`):** The build runs `collectstatic` with **`DJANGO_DEBUG` unset or `true` in the build environment** unless you set it. For a reliable build, set **`DJANGO_DEBUG=false`** in the service **Environment** (or add to the build command: `DJANGO_DEBUG=false python manage.py collectstatic --noinput`). If images return **404** after deploy, confirm (1) **`static/images/*` is committed and pushed** so Render can collect them, (2) the Web Service **root directory** points at the folder that contains `manage.py` and `static/`, and (3) **`DJANGO_DEBUG=false`** in production so templates and WhiteNoise use the same static pipeline.
 
 ### 4. Superuser and media files
 

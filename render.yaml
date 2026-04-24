@@ -14,7 +14,8 @@ services:
     runtime: python
     plan: free
     region: oregon
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    # DJANGO_DEBUG=false so collectstatic uses the same STORAGES (WhiteNoise) as runtime.
+    buildCommand: pip install -r requirements.txt && DJANGO_DEBUG=false python manage.py collectstatic --noinput
     preDeployCommand: python manage.py migrate --noinput
     startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
