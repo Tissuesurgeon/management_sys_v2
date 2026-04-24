@@ -103,11 +103,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    *(
-        ('whitenoise.middleware.WhiteNoiseMiddleware',)
-        if not DEBUG
-        else ()
-    ),
+    # Always run WhiteNoise under Gunicorn; if this only ran when DEBUG=False, a mis-set
+    # DJANGO_DEBUG on Render meant no static files at all (404 for /static/*).
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -239,9 +237,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Dev: serve from app static folders without collectstatic. Prod (DEBUG=False): use STATIC_ROOT only.
+WHITENOISE_USE_FINDERS = DEBUG
 
 if not DEBUG:
     # Use CompressedStaticFilesStorage (not Manifest): hashed manifest names only match if

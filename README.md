@@ -160,7 +160,7 @@ Set these on the **Web Service** (not only locally):
 
 `PYTHON_VERSION` is optional (defaults are fine); this project includes **`runtime.txt`** with `3.12.7`.
 
-**Static files (logos, images under `static/images/`):** The build runs `collectstatic` with **`DJANGO_DEBUG` unset or `true` in the build environment** unless you set it. For a reliable build, set **`DJANGO_DEBUG=false`** in the service **Environment** (or add to the build command: `DJANGO_DEBUG=false python manage.py collectstatic --noinput`). If images return **404** after deploy, confirm (1) **`static/images/*` is committed and pushed** so Render can collect them, (2) the Web Service **root directory** points at the folder that contains `manage.py` and `static/`, and (3) **`DJANGO_DEBUG=false`** in production so templates and WhiteNoise use the same static pipeline.
+**Static files (logos, images, `custom.css`):** The app **always** enables **WhiteNoise** so `/static/*` is served under Gunicorn (it is not optional on `DEBUG`). Set **`DJANGO_DEBUG=false`** in production for correct security and caching. The build should run **`DJANGO_DEBUG=false python manage.py collectstatic --noinput`** so `staticfiles/` is populated. If you still see **404 for all of `/static/`**, check the Web Service **root directory** (must be the folder containing `manage.py` and `static/`) and that **`static/`** is in the deployed branch.
 
 ### 4. Superuser and media files
 
