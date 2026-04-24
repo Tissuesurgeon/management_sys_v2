@@ -1,6 +1,6 @@
 # Pavilion management system — Workforce management 
 
-**Pavilion management system** is a web application for organizations that schedule field work, assign it to staff, and track completion. This repository is a **server-rendered** implementation built with **Django 5**: HTML templates, a SQLite database in development, and **Tailwind CSS** (via CDN) for a responsive UI with a desktop sidebar and mobile bottom navigation.
+**Pavilion management system** is a web application for organizations that schedule field work, assign it to staff, and track completion. This repository is a **server-rendered** implementation built with **Django 5**: HTML templates, **PostgreSQL when configured** (or **SQLite** in the project root when it is not), and **Tailwind CSS** (via CDN) for a responsive UI with a desktop sidebar and mobile bottom navigation.
 
 The app was created as a successor to a React single-page app (`Management_sys`). It follows similar URL patterns and behavior where it makes sense, but it is a separate codebase and does not import code from that project.
 
@@ -33,7 +33,7 @@ Django’s built-in **admin site** is available at **`/django-admin/`** for staf
 | Area | Choice |
 |------|--------|
 | Framework | Django 5 |
-| Database (dev) | SQLite (`db.sqlite3`, gitignored) |
+| Database | **PostgreSQL** if `DATABASE_URL` or `POSTGRES_*` is set; otherwise **SQLite** (`db.sqlite3`, gitignored) |
 | Auth | Django sessions, `django.contrib.auth` |
 | Uploads | User media (e.g. profile photos) under `media/`; import size limits in settings |
 | Styling | Tailwind Play CDN, Inter font, `static/custom.css` |
@@ -94,6 +94,7 @@ Settings load optional **`KEY=value`** entries from a **`.env`** file in the pro
 - **`SECRET_KEY`** — Required.
 - **`DJANGO_DEBUG`** — Defaults to on for local use; set to `False` in production.
 - **`DJANGO_ALLOWED_HOSTS`** — Comma-separated hostnames when deploying.
+- **Database** — Optional `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`) or `POSTGRES_DB` plus `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_HOST` / `POSTGRES_PORT` (see `.env.example`). If none of these are set, the app uses **SQLite** at `db.sqlite3`.
 
 ---
 
@@ -101,7 +102,7 @@ Settings load optional **`KEY=value`** entries from a **`.env`** file in the pro
 
 - Set **`SECRET_KEY`**, **`DJANGO_DEBUG=False`**, and **`DJANGO_ALLOWED_HOSTS`** in the environment or a private `.env` on the server.
 - Serve **static files** with `collectstatic` and your web server; serve **user uploads** from **`MEDIA_ROOT`** (not via Django in production when `DEBUG` is off).
-- Prefer **PostgreSQL** (or similar) instead of SQLite when you need concurrent writes and managed backups.
+- Use **PostgreSQL** in production (set `DATABASE_URL` or `POSTGRES_*`); **SQLite** is for quick local use when Postgres is not configured.
 - Review upload limits in settings if you import large spreadsheets.
 
 ---

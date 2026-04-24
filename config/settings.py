@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from typing import Any, Dict
+from urllib.parse import unquote, urlparse
 
 from django.contrib.messages import constants as msg_constants
 from django.core.exceptions import ImproperlyConfigured
@@ -123,13 +125,70 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+#
+# Default: PostgreSQL when ``DATABASE_URL`` or ``POSTGRES_DB`` is set (see .env.example).
+# Fallback: SQLite at ``db.sqlite3`` when Postgres is not configured (no extra services).
 
-DATABASES = {
-    'default': {
+
+def _postgres_configured() -> bool:
+    if (os.environ.get('DATABASE_URL') or '').strip():
+        return True
+    if (os.environ.get('POSTGRES_DB') or os.environ.get('PGDATABASE') or '').strip():
+        return True
+    return False
+
+
+def _build_postgres_default() -> Dict[str, Any]:
+    url = (os.environ.get('DATABASE_URL') or '').strip()
+    if url:
+        p = urlparse(url)
+        if p.scheme not in ('postgres', 'postgresql'):
+            raise ImproperlyConfigured(
+                f'DATABASE_URL must use postgresql: or postgres: (found scheme {p.scheme!r}).',
+            )
+        name = (p.path or '/').lstrip('/')
+        if not name:
+            raise ImproperlyConfigured('DATABASE_URL must include a database name (path after the host).')
+        return {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': unquote(name),
+            'USER': unquote(p.username) if p.username else '',
+            'PASSWORD': unquote(p.password) if p.password else '',
+            'HOST': p.hostname or '127.0.0.1',
+            'PORT': str(p.port) if p.port else '5432',
+        }
+    db = (os.environ.get('POSTGRES_DB') or os.environ.get('PGDATABASE') or '').strip()
+    if not db:
+        raise ImproperlyConfigured('POSTGRES_DB is not set for PostgreSQL.')
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': db,
+        'USER': (os.environ.get('POSTGRES_USER') or os.environ.get('PGUSER') or 'postgres').strip(),
+        'PASSWORD': (os.environ.get('POSTGRES_PASSWORD') or os.environ.get('PGPASSWORD') or '').strip(),
+        'HOST': (os.environ.get('POSTGRES_HOST') or '127.0.0.1').strip() or '127.0.0.1',
+        'PORT': (os.environ.get('POSTGRES_PORT') or '5432').strip() or '5432',
+    }
+
+
+def _build_sqlite_default() -> Dict[str, Any]:
+    return {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
-}
+
+
+if _postgres_configured():
+    try:
+        import psycopg  # noqa: F401, PLC0415
+    except ImportError as exc:
+        raise ImproperlyConfigured(
+            'PostgreSQL is configured in the environment, but the psycopg package is not installed. '
+            'Run: pip install "psycopg[binary]>=3.1" '
+            'Or remove DATABASE_URL and POSTGRES_DB to use SQLite (no extra driver).',
+        ) from exc
+    DATABASES = {'default': _build_postgres_default()}
+else:
+    DATABASES = {'default': _build_sqlite_default()}
 
 
 # Password validation
